@@ -23,6 +23,35 @@ cost_per_video_sec_usd: 0.10
 # Update from https://ai.google.dev/gemini-api/docs/pricing when they change.
 # Image models: input per 1M tokens + per-image output by resolution.
 # Video models: per second (Gemini Omni Flash: audio always generated).
+# Higgsfield reference-to-video catalog (verified 2026-10-27 from
+# docs.higgsfield.ai model pages). image_urls is ordered: first URL is the
+# first frame, the rest are identity references. Prices (list, estimates):
+# see `higgsfield.pricing`; re-check https://open.higgsfield.ai/pricing.
+higgsfield:
+  base_url: https://api.higgsfield.ai
+  models:
+    seedance-2-5:
+      workflow: bytedance/seedance-2.5/reference-to-video
+      durations_sec: { min: 4, max: 30 }
+      resolutions: ["480p", "720p", "1080p"]
+      price_per_sec_usd: { "480p": 0.174 }
+      params: [prompt, image_urls, duration, resolution, aspect_ratio, generate_audio]
+      max_references: 30
+    seedance-2-0:
+      workflow: bytedance/seedance-2.0/reference-to-video
+      durations_sec: { min: 4, max: 15 }
+      resolutions: ["480p", "720p", "1080p", "4k"]
+      price_per_sec_usd: { "480p": 0.168 }
+      params: [prompt, image_urls, duration, resolution, aspect_ratio, generate_audio]
+      max_references: 9
+    wan-3-0:
+      workflow: alibaba/wan-3.0/reference-to-video
+      durations_sec: { min: 2, max: 30 }
+      resolutions: ["480p", "720p", "1080p"]
+      price_per_sec_usd: { "720p": 0.050 }
+      params: [prompt, image_urls, duration, resolution, aspect_ratio, generate_audio]
+      max_references: 10
+
 pricing:
   image:
     gemini-3.1-flash-image:

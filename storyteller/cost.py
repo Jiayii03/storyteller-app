@@ -129,3 +129,37 @@ def video_cost(
         "breakdown": {f"video_{resolution}_{duration_sec:g}s": round(rate * duration_sec, 4)},
         "rate_per_sec": rate,
     }
+
+
+# Higgsfield reference-to-video list rates, per second per resolution.
+# Estimates: Seedance-family billing is per video token; these figures
+# approximate it at a fixed resolution. Verified 2026-10-27 from
+# docs.higgsfield.ai model pages / open.higgsfield.ai/pricing.
+# A resolution without a verified rate is cost-unknown, never guessed.
+HIGGSFIELD_PRICING: dict[str, dict[str, float]] = {
+    "seedance-2-5": {"480p": 0.174},
+    "seedance-2-0": {"480p": 0.168},
+    "wan-3-0": {"720p": 0.050},
+}
+
+
+def higgsfield_video_cost(
+    model: str,
+    resolution: str,
+    duration_sec: float,
+    pricing: dict | None = None,
+) -> dict | None:
+    """Cost for one reference-to-video submission, or None when the model or
+    resolution has no rate entry (logged as cost_usd=unknown)."""
+    table = pricing or HIGGSFIELD_PRICING
+    entry = _match(table, model)
+    if entry is None:
+        return None
+    rate = entry.get(resolution)
+    if rate is None:
+        return None
+    return {
+        "cost_usd": round(rate * duration_sec, 4),
+        "breakdown": {f"video_{resolution}_{duration_sec:g}s": round(rate * duration_sec, 4)},
+        "rate_per_sec": rate,
+    }

@@ -39,3 +39,17 @@ def test_video_cost_unknown_model_returns_none():
 def test_video_cost_veo_kept_for_enterprise():
     r = video_cost("veo-3.1-generate-preview", "720p", True, 4)
     assert r["cost_usd"] == 1.6
+
+
+def test_higgsfield_video_cost():
+    from storyteller.cost import higgsfield_video_cost
+    c = higgsfield_video_cost("seedance-2-5", "480p", 8, None)
+    assert c["cost_usd"] == round(0.174 * 8, 4)
+    assert c["rate_per_sec"] == 0.174
+    assert higgsfield_video_cost("totally-unknown", "480p", 8, None) is None
+
+
+def test_higgsfield_video_cost_unknown_resolution_is_none():
+    from storyteller.cost import higgsfield_video_cost
+    # 1080p has no verified rate in the seed catalog: unknown, never guessed
+    assert higgsfield_video_cost("seedance-2-5", "1080p", 8, None) is None

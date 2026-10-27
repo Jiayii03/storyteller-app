@@ -9,6 +9,39 @@ from typing import Any
 
 from .cost import IMAGE_PRICING, VIDEO_PRICING
 
+# Verified 2026-10-27 from docs.higgsfield.ai model pages (reference-to-video
+# workflows only; image_urls is ordered — first URL is the first frame).
+# Prices are list estimates in HIGGSFIELD_PRICING (cost.py).
+HIGGSFIELD_MODELS: dict[str, dict[str, Any]] = {
+    "seedance-2-5": {
+        "workflow": "bytedance/seedance-2.5/reference-to-video",
+        "durations_sec": {"min": 4, "max": 30},
+        "resolutions": ["480p", "720p", "1080p"],
+        "price_per_sec_usd": {"480p": 0.174},
+        "params": ["prompt", "image_urls", "duration", "resolution",
+                   "aspect_ratio", "generate_audio"],
+        "max_references": 30,
+    },
+    "seedance-2-0": {
+        "workflow": "bytedance/seedance-2.0/reference-to-video",
+        "durations_sec": {"min": 4, "max": 15},
+        "resolutions": ["480p", "720p", "1080p", "4k"],
+        "price_per_sec_usd": {"480p": 0.168},
+        "params": ["prompt", "image_urls", "duration", "resolution",
+                   "aspect_ratio", "generate_audio"],
+        "max_references": 9,
+    },
+    "wan-3-0": {
+        "workflow": "alibaba/wan-3.0/reference-to-video",
+        "durations_sec": {"min": 2, "max": 30},
+        "resolutions": ["480p", "720p", "1080p"],
+        "price_per_sec_usd": {"720p": 0.050},
+        "params": ["prompt", "image_urls", "duration", "resolution",
+                   "aspect_ratio", "generate_audio"],
+        "max_references": 10,
+    },
+}
+
 DEFAULTS: dict[str, Any] = {
     "max_variants_per_asset": 4,
     "max_retries": 2,
@@ -52,6 +85,9 @@ class Config:
     storyboard_columns: int = 3
     image_pricing: dict = field(default_factory=lambda: dict(IMAGE_PRICING))
     video_pricing: dict = field(default_factory=lambda: dict(VIDEO_PRICING))
+    higgsfield_base_url: str = "https://api.higgsfield.ai"
+    higgsfield_models: dict = field(
+        default_factory=lambda: {k: dict(v) for k, v in HIGGSFIELD_MODELS.items()})
 
     @property
     def video_max_duration_sec(self) -> int:
@@ -76,6 +112,7 @@ def load_config(start_dir: Path | None = None) -> Config:
     constraints = dict(DEFAULTS["model_constraints"])
     constraints.update(data.pop("model_constraints", {}) or {})
     pricing_in = data.pop("pricing", {}) or {}
+    hf_in = data.pop("higgsfield", {}) or {}
     data.pop("_image_cost_hints", None)
     merged.update(data)
     merged["model_constraints"] = constraints
@@ -100,7 +137,38 @@ def load_config(start_dir: Path | None = None) -> Config:
         merged_pricing["video"].update(pricing_in.get("video", {}) or {})
         cfg.image_pricing = merged_pricing["image"]
         cfg.video_pricing = merged_pricing["video"]
+    if isinstance(hf_in, dict):
+        if hf_in.get("base_url"):
+            cfg.higgsfield_base_url = str(hf_in["base_url"])
+        models_in = hf_in.get("models") or {}
+        if isinstance(models_in, dict):
+            for mid, entry in models_in.items():
+                base = dict(HIGGSFIELD_MODELS.get(mid, {}))
+                base.update(entry if isinstance(entry, dict) else {})
+                cfg.higgsfield_models[mid] = base
     return cfg
+
+
+def hf_credentials() -> tuple[str, str]:
+    """Higgsfield key id + secret from env or .env. Never logged, never
+    written anywhere. Accepts HF_API_KEY as combined "id:secret" (the form
+    console.higgsfield.ai issues) or split HF_API_KEY_ID / HF_API_KEY_SECRET."""
+    combined = os.environ.get("HF_API_KEY", "")
+    key_id = os.environ.get("HF_API_KEY_ID", "")
+    secret = os.environ.get("HF_API_KEY_SECRET", "")
+    if not (combined or key_id or secret):
+        try:
+            from dotenv import find_dotenv, load_dotenv
+
+            load_dotenv(find_dotenv(usecwd=True))
+            combined = os.environ.get("HF_API_KEY", "")
+            key_id = os.environ.get("HF_API_KEY_ID", "")
+            secret = os.environ.get("HF_API_KEY_SECRET", "")
+        except ImportError:
+            pass
+    if combined and ":" in combined:
+        key_id, _, secret = combined.partition(":")
+    return key_id, secret
 
 
 def api_key() -> str:
