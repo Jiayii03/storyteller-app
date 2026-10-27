@@ -1,0 +1,675 @@
+{
+  "schema_version": "0.1",
+  "project": {
+    "id": "pc_story",
+    "title": "Boy at the Computer (2000 -> 2030)",
+    "logline": "A boy who loves computer games in year-2000 Malaysia grows into a man trapped by one in 2030.",
+    "aspect_ratio": "16:9",
+    "target_video_model": "higgsfield",
+    "target_total_duration_sec": 32,
+    "language": "en"
+  },
+  "models": {
+    "image_model": "gemini-3.1-flash-image",
+    "video_model": "gemini-omni-1.1-flash",
+    "image_resolution": "1K",
+    "video_resolution": "720p"
+  },
+  "style_bible": {
+    "medium": "photorealistic",
+    "genre_mood": "nostalgic, bittersweet coming-of-age",
+    "color_palette": [
+      "warm orange",
+      "vivid blue",
+      "beige"
+    ],
+    "color_grade": "highly saturated, warm, nostalgic early-2000s film look",
+    "film_stock_or_look": "2000s consumer film look, slight softness, vivid colors",
+    "default_lens_mm": 35,
+    "lighting_style": "practical screen glow and household lights",
+    "texture_detail": "natural skin texture, worn household materials",
+    "era_setting": "Malaysia, year 2000",
+    "global_negative_prompt": [
+      "text",
+      "watermark",
+      "logo",
+      "extra fingers",
+      "distorted face",
+      "blurry",
+      "cartoon",
+      "anime"
+    ],
+    "reference_image_paths": []
+  },
+  "characters": [
+    {
+      "id": "wei",
+      "name": "Wei",
+      "role": "protagonist (age 16)",
+      "gender": "male",
+      "age": 16,
+      "ethnicity_or_heritage": "Malaysian Chinese",
+      "height_build": "teenage, slightly lanky",
+      "skin": {
+        "tone": "warm medium tan",
+        "texture": "youthful",
+        "marks": "small mole above the left eyebrow"
+      },
+      "face": {
+        "shape": "round",
+        "eyes": "dark brown, bright and lively",
+        "eyebrows": "straight, natural",
+        "nose": "small, rounded",
+        "lips": "natural",
+        "facial_hair": "none",
+        "distinguishing_features": "small mole above the left eyebrow, must stay in every shot"
+      },
+      "hair": {
+        "length": "short",
+        "style": "schoolboy cut, slightly messy",
+        "color": "black",
+        "texture": "straight"
+      },
+      "default_expression": "open, eager, easily delighted",
+      "wardrobe": {
+        "top": "casual cotton t-shirt, slightly oversized",
+        "bottom": "comfortable shorts",
+        "footwear": "barefoot or house slippers",
+        "accessories": ""
+      },
+      "demeanor_body_language": "fidgety energy, leans toward screens, shoulders relaxed when absorbed in play",
+      "input_reference_images": [],
+      "consistency_notes": "round face, short black hair, small mole above left eyebrow - identical in every shot"
+    },
+    {
+      "id": "dad",
+      "name": "Dad",
+      "role": "father",
+      "gender": "male",
+      "age": "late 40s",
+      "ethnicity_or_heritage": "Malaysian Chinese",
+      "height_build": "medium build, slight stoop, tired shoulders",
+      "skin": {
+        "tone": "warm medium tan",
+        "texture": "weathered, visible pores",
+        "marks": "laugh lines and frown lines"
+      },
+      "face": {
+        "shape": "round with heavy jaw",
+        "eyes": "dark brown, hooded, tired",
+        "eyebrows": "thick, now greying",
+        "nose": "broad",
+        "lips": "thin, set in a firm line",
+        "facial_hair": "stubble",
+        "distinguishing_features": "receding hairline, grey-flecked temples"
+      },
+      "hair": {
+        "length": "short",
+        "style": "receding, combed",
+        "color": "black with grey",
+        "texture": "straight"
+      },
+      "default_expression": "weary authority",
+      "wardrobe": {
+        "top": "white ribbed singlet",
+        "bottom": "loose house shorts",
+        "footwear": "house slippers",
+        "accessories": ""
+      },
+      "demeanor_body_language": "heavy steps, hands often on hips, points when scolding",
+      "input_reference_images": [],
+      "consistency_notes": "singlet and shorts, tired but stern; same living room as Wei"
+    },
+    {
+      "id": "wei_adult",
+      "name": "Wei at 40",
+      "role": "protagonist (age 40, 2030)",
+      "gender": "male",
+      "age": 40,
+      "ethnicity_or_heritage": "Malaysian Chinese",
+      "height_build": "average, rounded shoulders, desk-bound posture",
+      "skin": {
+        "tone": "warm medium tan, duller than in 2000",
+        "texture": "tired, visible pores",
+        "marks": "small mole above the left eyebrow, dark eye bags"
+      },
+      "face": {
+        "shape": "round, softened with age",
+        "eyes": "dark brown, red-rimmed and exhausted",
+        "eyebrows": "straight, greying at the tail",
+        "nose": "small, rounded",
+        "lips": "dry, pressed flat",
+        "facial_hair": "light stubble",
+        "distinguishing_features": "small mole above the left eyebrow (same as at 16), deep eye bags, faint forehead lines"
+      },
+      "hair": {
+        "length": "short",
+        "style": "neat office cut, thinning at the crown",
+        "color": "black, first grey strands",
+        "texture": "straight"
+      },
+      "default_expression": "numb fatigue",
+      "wardrobe": {
+        "top": "wrinkled white dress shirt",
+        "outerwear": "loosened navy tie, second top button undone",
+        "bottom": "charcoal slacks",
+        "footwear": "black leather shoes, one heel crushed",
+        "accessories": "lanyard with office badge"
+      },
+      "demeanor_body_language": "slow, heavy, rubs his face, exhales through the nose",
+      "input_reference_images": [],
+      "consistency_notes": "same round face and mole above left eyebrow as wei (age 16) - clearly the same person grown up"
+    }
+  ],
+  "locations": [
+    {
+      "id": "room2000",
+      "name": "Family living room, 2000",
+      "type": "interior",
+      "description": "cramped Malaysian family living room with a bulky beige CRT desktop computer on a wooden desk",
+      "architecture_layout": "narrow living room, computer desk against the wall, doorway behind, plastic-covered sofa to one side",
+      "key_elements": [
+        "bulky beige CRT desktop computer",
+        "chunky beige keyboard",
+        "wire-tangled desk",
+        "ceiling fan",
+        "calander and family photos on wall",
+        "glass cabinet with trophies"
+      ],
+      "materials_textures": [
+        "laminate wood",
+        "beige plastic",
+        "worn linoleum floor",
+        "patterned upholstery"
+      ],
+      "default_time_of_day": "night",
+      "default_weather": "",
+      "default_lighting": "warm tungsten ceiling light plus blue-white CRT screen glow",
+      "ambient_details": [
+        "PC fan hum",
+        "ceiling fan spin",
+        "glow of Windows 98 screen"
+      ],
+      "input_reference_images": []
+    },
+    {
+      "id": "office2030",
+      "name": "Open-plan office, 2030",
+      "type": "interior",
+      "description": "dim open-plan office at night, rows of empty desks, flat fluorescent lighting, cold blue-grey tone",
+      "architecture_layout": "large floor plate, grid of identical desks, glass partition walls, exit sign glowing at the far end",
+      "key_elements": [
+        "dual-monitor desktop full of spreadsheets",
+        "empty desks with chairs pushed in",
+        "cold coffee cups",
+        "wall clock showing 11:47 PM",
+        "glass partitions",
+        "emergency exit sign"
+      ],
+      "materials_textures": [
+        "grey carpet",
+        "laminated desks",
+        "glass",
+        "brushed metal"
+      ],
+      "default_time_of_day": "night",
+      "default_weather": "",
+      "default_lighting": "flat cold fluorescent, monitors as the only warm light on his face",
+      "ambient_details": [
+        "soft keyboard clicks",
+        "air-conditioner hum",
+        "screen notification pings"
+      ],
+      "input_reference_images": []
+    }
+  ],
+  "props": [
+    {
+      "id": "crt_computer",
+      "name": "Beige CRT desktop computer",
+      "description": "bulky beige CRT monitor with deep plastic casing on a tower, chunky beige keyboard, Windows 98 desktop with start bar visible",
+      "size_scale": "fills half a small desk",
+      "materials": [
+        "beige plastic",
+        "thick glass screen"
+      ],
+      "colors": [
+        "beige",
+        "cream",
+        "green-black screen"
+      ],
+      "condition": "well-used, dust in the vents, yellowed plastic",
+      "branding_text": "",
+      "input_reference_images": []
+    }
+  ],
+  "shots": [
+    {
+      "id": "S01",
+      "sequence_index": 1,
+      "duration_sec": 8,
+      "narrative_purpose": "establish era, place and joy of playing",
+      "summary": "Year 2000: Wei plays games on the CRT, absorbed and happy",
+      "location_id": "room2000",
+      "camera": {
+        "shot_size": "medium",
+        "angle": "eye_level",
+        "perspective": "three_quarter",
+        "camera_height": "seated eye level",
+        "lens_mm": 35,
+        "depth_of_field": "medium",
+        "movement": "push_in",
+        "movement_speed": "slow"
+      },
+      "lighting": {
+        "key_light": "CRT screen glow from camera-right on his face",
+        "quality": "soft",
+        "contrast": "medium",
+        "color_temperature": "warm with cool screen spill",
+        "practical_lights": "tungsten ceiling light, monitor screen",
+        "atmosphere": "clear",
+        "shadows": "warm ambient, soft screen-lit face"
+      },
+      "subjects": [
+        {
+          "character_id": "wei",
+          "position_in_frame": "center-left, at the desk",
+          "facing_direction": "three-quarter turned toward the screen, camera-right",
+          "pose": "seated at the desk, leaning slightly toward the monitor",
+          "action": "playing a game, hands on keyboard, shoulder-shaking grin",
+          "facial_expression": "happy grin, eyes locked on the screen",
+          "gaze": "at the CRT screen",
+          "hands": "left hand on chunky keyboard, right hand on mouse",
+          "interaction": "playing the computer game",
+          "emotional_state": "pure absorption and joy"
+        }
+      ],
+      "props_in_shot": [
+        {
+          "prop_id": "crt_computer",
+          "position": "on the desk in front of him",
+          "state": "running, Windows 98 on screen"
+        }
+      ],
+      "background": {
+        "description": "rest of the cramped living room: sofa, cabinet, doorway",
+        "depth_layers": "foreground: keyboard and hands, midground: Wei, background: living room",
+        "extras": "",
+        "focus_state": "sharp"
+      },
+      "composition": {
+        "framing_rule": "rule of thirds",
+        "headroom": "moderate",
+        "negative_space": "screen glow fills camera-right",
+        "screen_direction": "subject facing screen-right"
+      },
+      "color_grade_override": "year 2000 look: warm, highly saturated, vivid oranges and bright blues, nostalgic early-2000s film feel",
+      "keyframes": {
+        "start": {
+          "description": "Wei mid-game, grinning, screen glow on his face, text overlay '2000' in a retro pixel font in the top corner"
+        }
+      },
+      "motion": {
+        "duration_sec": 2,
+        "subject_motion": "happy grin, small shoulder shake, fingers tapping keys",
+        "camera_motion": "slow push in from medium shot",
+        "environment_motion": "ceiling fan spins slowly",
+        "pacing": "slow",
+        "audio_notes": "Ambient: PC fan hum, faint dial-up modem noise, soft mouse clicks. No dialogue.",
+        "video_prompt": "Realistic live-action, Malaysia, 16:9, slow pacing, 8 seconds. Year 2000 look: warm, highly saturated, vivid colors, nostalgic early-2000s film feel. Text overlay \"2000\" in a retro pixel font in the corner. A Malaysian Chinese teenage boy (16, round face, short black hair, small mole above the left eyebrow, casual t-shirt) sits in a cramped living room in front of a bulky beige CRT desktop computer with a chunky keyboard, Windows 98 on screen. Medium shot, then a slow push-in. He smiles happily, absorbed in the game, lit by the screen glow."
+      },
+      "continuity_notes": "same room, boy and CRT as S02 and S03",
+      "transition_out": "cut",
+      "negative_prompt": [
+        "modern flat screens",
+        "smartphone"
+      ],
+      "chain_from_previous": false
+    },
+    {
+      "id": "S02",
+      "sequence_index": 2,
+      "duration_sec": 8,
+      "narrative_purpose": "intrusion of authority, joy turns to dread",
+      "summary": "Dad appears behind Wei; the smile fades as dad points to the door",
+      "location_id": "room2000",
+      "camera": {
+        "shot_size": "medium_close",
+        "angle": "eye_level",
+        "perspective": "over_the_shoulder",
+        "camera_height": "standing height behind the boy's shoulder",
+        "lens_mm": 50,
+        "depth_of_field": "shallow",
+        "movement": "static",
+        "movement_speed": "medium"
+      },
+      "lighting": {
+        "key_light": "tungsten ceiling light from above, dad's back half-shadowing the boy",
+        "quality": "hard",
+        "contrast": "high",
+        "color_temperature": "warm",
+        "practical_lights": "CRT screen glow",
+        "atmosphere": "clear",
+        "shadows": "dad's shadow falls across the desk"
+      },
+      "subjects": [
+        {
+          "character_id": "dad",
+          "position_in_frame": "right of frame, standing behind the seated boy",
+          "facing_direction": "pointing toward the desk, head tilted down at the boy",
+          "pose": "standing, one arm raised pointing at the desk",
+          "action": "scolding, pointing toward the study desk",
+          "facial_expression": "furrowed brows, tired but stern",
+          "gaze": "down at Wei",
+          "hands": "right hand pointing, left hand on hip",
+          "interaction": "interrupting Wei's game",
+          "emotional_state": "weary exasperation, firm authority"
+        },
+        {
+          "character_id": "wei",
+          "position_in_frame": "lower-left of frame, seated, back to camera-right",
+          "facing_direction": "facing the screen, shoulders tensing",
+          "pose": "seated, hunching slightly",
+          "action": "sensing dad behind him, smile fading",
+          "facial_expression": "smile collapsing into a wince",
+          "gaze": "stays on the screen a beat too long",
+          "hands": "frozen on the mouse",
+          "interaction": "caught playing",
+          "emotional_state": "guilt, dread"
+        }
+      ],
+      "props_in_shot": [
+        {
+          "prop_id": "crt_computer",
+          "position": "on the desk, mid-frame",
+          "state": "game still running"
+        }
+      ],
+      "background": {
+        "description": "cramped living room in warm tungsten light",
+        "depth_layers": "foreground: dad's pointing arm, midground: Wei at the desk, background: living room wall",
+        "extras": "",
+        "focus_state": "sharp"
+      },
+      "composition": {
+        "framing_rule": "leading lines from dad's pointing arm to the boy",
+        "headroom": "tight on dad",
+        "negative_space": "",
+        "screen_direction": "dad screen-left of Wei"
+      },
+      "color_grade_override": "year 2000 look: warm, highly saturated, vivid oranges and bright blues, nostalgic early-2000s film feel",
+      "keyframes": {
+        "start": {
+          "description": "Wei still playing happily at the CRT, dad just entering the doorway behind him"
+        },
+        "end": {
+          "description": "dad standing right behind the seated boy, pointing at the desk, dad's shadow across the desk",
+          "changes_from_start": [
+            "dad has stepped into frame directly behind Wei, pointing",
+            "Wei's smile has faded into a guilty wince",
+            "dad's shadow now falls across the desk"
+          ]
+        }
+      },
+      "motion": {
+        "duration_sec": 2,
+        "subject_motion": "dad steps into frame and points; boy's smile fades",
+        "camera_motion": "static, medium close-up on dad",
+        "environment_motion": "ceiling fan spins",
+        "pacing": "slow",
+        "audio_notes": "Dad (Malaysian English accent, firm voice): \"Eh! Still playing ah? Go study now lah!\" Ambient: PC fan hum, a ceiling fan.",
+        "video_prompt": "Realistic live-action, Malaysia, 16:9, slow pacing, 8 seconds. Same saturated, warm year-2000 look, same living room with the CRT computer. The teenage boy is playing happily when his dad (late 40s, singlet and shorts) steps into frame behind him. The boy's smile slowly fades as he senses someone there. Medium close-up of the dad: furrowed brows, tired but stern, pointing toward the desk. Dad (Malaysian English accent, firm voice): \"Eh! Still playing ah? Go study now, lah!\" Ambient: PC fan hum, a ceiling fan."
+      },
+      "continuity_notes": "same room and wardrobe as S01; dad appears again in no later shot",
+      "transition_out": "cut",
+      "negative_prompt": [
+        "modern flat screens"
+      ],
+      "chain_from_previous": false
+    },
+    {
+      "id": "S03",
+      "sequence_index": 3,
+      "duration_sec": 8,
+      "narrative_purpose": "the sulk, and the wish that becomes the 2030 twist",
+      "summary": "Wei sulks, crosses his arms, declares he'll play computers for a living; camera pushes into the glowing screen",
+      "location_id": "room2000",
+      "camera": {
+        "shot_size": "medium_close",
+        "angle": "eye_level",
+        "perspective": "three_quarter",
+        "camera_height": "seated eye level",
+        "lens_mm": 50,
+        "depth_of_field": "shallow",
+        "movement": "push_in",
+        "movement_speed": "slow"
+      },
+      "lighting": {
+        "key_light": "CRT screen glow, brightening at the end",
+        "quality": "soft",
+        "contrast": "medium",
+        "color_temperature": "cool screen glow vs warm room",
+        "practical_lights": "CRT screen",
+        "atmosphere": "clear",
+        "shadows": "room dims as the screen brightens"
+      },
+      "subjects": [
+        {
+          "character_id": "wei",
+          "position_in_frame": "center, seated at the desk",
+          "facing_direction": "turning from screen to camera, arms crossed, then back to the screen",
+          "pose": "turned in his desk chair, arms crossed tight",
+          "action": "sulking, mouthing off toward the doorway",
+          "facial_expression": "lips pressed together, eyebrows pulled down, frustrated sulk",
+          "gaze": "away toward the doorway, then back at the screen",
+          "hands": "crossed arms, fingers gripping his own sleeves",
+          "interaction": "answering back to dad off-screen",
+          "emotional_state": "defiant resentment, secretly hurt"
+        }
+      ],
+      "props_in_shot": [
+        {
+          "prop_id": "crt_computer",
+          "position": "on the desk",
+          "state": "glowing, game paused"
+        }
+      ],
+      "background": {
+        "description": "dim living room",
+        "depth_layers": "midground: Wei, background: dark living room",
+        "extras": "",
+        "focus_state": "sharp"
+      },
+      "composition": {
+        "framing_rule": "centered, symmetric sulky posture",
+        "headroom": "moderate",
+        "negative_space": "",
+        "screen_direction": "subject facing camera, then turning screen-left"
+      },
+      "color_grade_override": "year 2000 look: warm, highly saturated, nostalgic early-2000s film feel",
+      "keyframes": {
+        "start": {
+          "description": "Wei turned in his chair, arms crossed, mid-sulk, lips pressed, eyebrows down"
+        },
+        "end": {
+          "description": "camera pushed close into the CRT screen, the whole frame filled by the bright glowing screen going white",
+          "changes_from_start": [
+            "camera has pushed into the CRT screen",
+            "glow brightens until the frame is nearly white"
+          ]
+        }
+      },
+      "motion": {
+        "duration_sec": 2,
+        "subject_motion": "boy turns, sulks, looks away and back",
+        "camera_motion": "slow push into the glowing CRT screen, glow brightens to white",
+        "environment_motion": "",
+        "pacing": "slow",
+        "audio_notes": "Boy (Malaysian English, pouty, casual): \"Aiyo... I hate studying lah. Later when I grow up, I want a job where I can play computer every day!\" Ambient: PC fan hum.",
+        "video_prompt": "Realistic live-action, Malaysia, 16:9, slow pacing, 8 seconds. Same saturated, warm year-2000 look and living room. The teenage boy (round face, short black hair, small mole above the left eyebrow) slowly turns around in his chair, lips pressed together, eyebrows pulled down, a frustrated sulk. He crosses his arms, looks away, then back toward the screen. Boy (Malaysian English, pouty, casual): \"Aiyo... I hate studying lah. Later when I grow up, I want a job where I can play computer every day!\" The camera slowly pushes into the glowing CRT screen as the glow brightens to white."
+      },
+      "continuity_notes": "ends on white screen glow that S04 starts from",
+      "transition_out": "match_cut",
+      "negative_prompt": [
+        "modern flat screens"
+      ],
+      "chain_from_previous": false
+    },
+    {
+      "id": "S04",
+      "sequence_index": 4,
+      "duration_sec": 8,
+      "narrative_purpose": "the wish fulfilled and revealed as a trap",
+      "summary": "Year 2030: adult Wei alone in a cold night office, buried in spreadsheets, cannot go home",
+      "location_id": "office2030",
+      "camera": {
+        "shot_size": "medium",
+        "angle": "eye_level",
+        "perspective": "profile",
+        "camera_height": "seated eye level",
+        "lens_mm": 50,
+        "depth_of_field": "shallow",
+        "movement": "pull_out",
+        "movement_speed": "slow"
+      },
+      "lighting": {
+        "key_light": "dual monitors glowing on his face from camera-left",
+        "quality": "soft",
+        "contrast": "high",
+        "color_temperature": "cold desaturated blue-grey",
+        "practical_lights": "monitors, fluorescent panels, exit sign",
+        "atmosphere": "clear",
+        "shadows": "deep dark rows of desks behind him"
+      },
+      "subjects": [
+        {
+          "character_id": "wei_adult",
+          "position_in_frame": "center, seated at a desk",
+          "facing_direction": "profile facing screen-left toward his monitors",
+          "pose": "seated, slumped, elbows on armrests",
+          "action": "rubbing his face with both hands, glancing at his bag, starting to stand, then pinging back down to type",
+          "facial_expression": "numb exhaustion, dark eye bags, red tired eyes",
+          "gaze": "at the spreadsheets, brief hope at the bag, drop back to the screen",
+          "hands": "rubbing face, then dropping to keyboard",
+          "interaction": "trapped by an urgent deadline notification",
+          "emotional_state": "weariness with no escape"
+        }
+      ],
+      "props_in_shot": [],
+      "background": {
+        "description": "rows of empty desks fading into darkness, wall clock 11:47 PM, exit sign",
+        "depth_layers": "midground: Wei and dual monitors, background: dark empty office rows",
+        "extras": "nobody else",
+        "focus_state": "sharp on him, background falls off"
+      },
+      "composition": {
+        "framing_rule": "centered, then pulling out to tiny figure in huge space",
+        "headroom": "high as camera pulls out",
+        "negative_space": "vast dark office around a small lit desk",
+        "screen_direction": "subject facing screen-left"
+      },
+      "color_grade_override": "cold desaturated blue-grey, flat fluorescent night-office look (contrast with the warm 2000 shots)",
+      "keyframes": {
+        "start": {
+          "description": "adult Wei at his desk in the dim blue-grey office, both hands rubbing his face, monitors glowing, wall clock 11:47 PM behind"
+        },
+        "end": {
+          "description": "wide shot: Wei a tiny lit figure at his desk in a huge dark empty office",
+          "changes_from_start": [
+            "camera has zoomed out to a wide shot",
+            "Wei is a tiny figure in the vast empty office"
+          ]
+        }
+      },
+      "motion": {
+        "duration_sec": 2,
+        "subject_motion": "rubbing face, tired sigh, typing",
+        "camera_motion": "slow zoom out to a tiny figure in a huge empty office",
+        "environment_motion": "monitor glow flickers",
+        "pacing": "slow",
+        "audio_notes": "Man (Malaysian English, low weary voice): \"Haiz... so late already, still cannot go home. Every day sit here with this computer.\" Then screen pings \"URGENT: DEADLINE 8AM\". Soft sad piano music. Ambient: keyboard clicks, air-con hum.",
+        "video_prompt": "Realistic live-action, Malaysia, 16:9, slow pacing, 8 seconds. Start from a glowing screen that fades into a cold, desaturated blue-grey look. Text overlay \"2030\" in a clean modern font. A dim open-plan office at night, flat fluorescent lighting, empty desks, cold coffee cups, wall clock showing 11:47 PM. A Malaysian Chinese man (40, round face, short black hair, small mole above the left eyebrow, wrinkled shirt, loosened tie) sits at a desktop with dual monitors full of spreadsheets, dark eye bags, red tired eyes. He rubs his face with both hands. Man (Malaysian English, low weary voice): \"Haiz... so late already, still cannot go home. Every day sit here with this computer.\" He glances at the bag by his chair, starts to stand, then the screen pings \"URGENT: DEADLINE 8AM\". His face drops, he sighs and sits back down to type. Slow zoom out to a tiny figure in a huge empty office. Soft sad piano music."
+      },
+      "continuity_notes": "starts from the white glow of S03's end; same face and mole as S01-S03, aged 24 years",
+      "transition_out": "fade_black",
+      "negative_prompt": [
+        "CRT monitor",
+        "warm saturated colors"
+      ],
+      "chain_from_previous": false
+    }
+  ],
+  "assets": [
+    {
+      "asset_id": "char_wei",
+      "asset_type": "character_reference",
+      "target_id": "wei",
+      "variants": 1
+    },
+    {
+      "asset_id": "char_dad",
+      "asset_type": "character_reference",
+      "target_id": "dad",
+      "variants": 1
+    },
+    {
+      "asset_id": "char_wei_adult",
+      "asset_type": "character_reference",
+      "target_id": "wei_adult",
+      "variants": 1
+    },
+    {
+      "asset_id": "loc_room2000",
+      "asset_type": "location_reference",
+      "target_id": "room2000",
+      "variants": 1
+    },
+    {
+      "asset_id": "loc_office2030",
+      "asset_type": "location_reference",
+      "target_id": "office2030",
+      "variants": 1,
+      "skip_style_bible": true,
+      "prompt_override": "Modern Malaysian open-plan office at night in the year 2030: a large floor plate with a grid of identical desks, most chairs pushed in and empty, glass partition walls, grey carpet, laminated desks, brushed metal. Flat cold fluorescent lighting, everything desaturated blue-grey. One single desk in the middle distance still lit by dual flat-panel monitors full of spreadsheets, next to it a cold coffee cup and a crumpled shirt sleeve over the chair. A wall clock deep in the background shows 11:47 PM. A green emergency exit sign glows at the far end. No people anywhere. Cold, lonely, contemporary corporate mood."
+    },
+    {
+      "asset_id": "prop_crt",
+      "asset_type": "prop_reference",
+      "target_id": "crt_computer",
+      "variants": 1
+    },
+    {
+      "asset_id": "kf_S01_start",
+      "asset_type": "keyframe",
+      "target_id": "S01",
+      "frame_role": "start",
+      "variants": 2
+    },
+    {
+      "asset_id": "kf_S02_start",
+      "asset_type": "keyframe",
+      "target_id": "S02",
+      "frame_role": "start",
+      "variants": 2
+    },
+    {
+      "asset_id": "kf_S03_start",
+      "asset_type": "keyframe",
+      "target_id": "S03",
+      "frame_role": "start",
+      "variants": 2
+    },
+    {
+      "asset_id": "kf_S04_start",
+      "asset_type": "keyframe",
+      "target_id": "S04",
+      "frame_role": "start",
+      "variants": 2
+    },
+    {
+      "asset_id": "storyboard",
+      "asset_type": "storyboard_sheet",
+      "target_id": "project"
+    }
+  ]
+}
