@@ -69,6 +69,22 @@ generating anything.
 
 ## 2. Reference sheets first (characters, locations, props, style)
 
+Reference assets are **sheets** — one image carrying multiple views — not
+single pictures. A character sheet must cover the basics so every later
+keyframe and clip can copy identity from it: full-body standing (neutral,
+front), seated pose (matching how the shots stage the character), facial
+expressions (neutral, happy, sad, angry), and angles (front, three-quarter,
+left profile, right profile).
+
+In `project.json` this is driven by `reference_views` on the character, e.g.
+`"reference_views": ["turnaround", "face_closeup"]` (turnaround = front,
+three-quarter and side on one sheet; face_closeup adds a facial close-up).
+For anything else — sitting pose, extra expressions, left/right profile —
+add a `prompt_append` on the character_reference asset describing the
+additional views. Location sheets: establishing shot plus detail shots of
+`key_elements` (via `prompt_append`). Props: the object from at least two
+angles with its `condition` visible.
+
 Identity consistency flows from these sheets into every later stage, so they
 come first.
 
