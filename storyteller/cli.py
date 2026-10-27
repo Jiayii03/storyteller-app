@@ -210,6 +210,45 @@ def cmd_generate(args: argparse.Namespace) -> None:
     console.print("Review candidates: uv run main.py review " + args.project)
 
 
+def cmd_video(args: argparse.Namespace) -> None:
+    from .higgsfield_client import HiggsfieldError
+    from . import video as video_mod
+
+    project = _load_project(args.project)
+    cfg = _cfg_for(args.project)
+    try:
+        report = video_mod.run_video(
+            Path(args.project), project, cfg,
+            shots=args.shot or None,
+            model=args.model,
+            resolution=args.resolution,
+            dry_run=args.dry_run,
+            yes=args.yes,
+            force=args.force,
+            allow_unapproved=args.allow_unapproved,
+        )
+    except HiggsfieldError as e:
+        err_console.print(f"[red]{e}[/red]")
+        raise SystemExit(2)
+    for aid, why in report.skipped:
+        console.print(f"[yellow]SKIP[/yellow] {aid}: {why}")
+    for aid, why in report.failed:
+        err_console.print(f"[red]FAIL[/red] {aid}: {why}")
+    if report.failed:
+        raise SystemExit(1)
+    if args.dry_run:
+        return
+    usage_line = (f"Done. {len(report.done)} clips generated, "
+                  f"{len(report.skipped)} skipped, {report.calls} submissions, "
+                  f"~${report.cost_usd:.2f}" if report.cost_usd else
+                  f"Done. {len(report.done)} clips generated, "
+                  f"{len(report.skipped)} skipped, {report.calls} submissions")
+    console.print(usage_line + (f" ({report.unknown_cost_calls} without a "
+                                "price entry)" if report.unknown_cost_calls else "")
+                  + ". Approve clips: uv run main.py approve "
+                  f"{args.project} video_<shot_id> clip_vNN.mp4")
+
+
 def cmd_review(args: argparse.Namespace) -> None:
     from .review import build_review
 
@@ -219,22 +258,36 @@ def cmd_review(args: argparse.Namespace) -> None:
     console.print(f"[green]Wrote {out}[/green] - open it in a browser.")
 
 
+def _video_asset_dir(paths, project, asset_id: str):
+    """shot motion dir for a `video_<shot_id>` pseudo-asset, else None."""
+    if not asset_id.startswith("video_"):
+        return None
+    shot_id = asset_id[len("video_"):]
+    if any(s.id == shot_id for s in project.shots):
+        return paths.shot_motion_dir(shot_id)
+    return None
+
+
 def cmd_approve(args: argparse.Namespace) -> None:
     project = _load_project(args.project)
     paths = _paths_for(args.project)
     assets = resolver.effective_assets(project)
     asset = next((a for a in assets if a.asset_id == args.asset_id), None)
-    if asset is None:
+    adir = None
+    if asset is not None:
+        adir = resolver.asset_dir_for(paths, project, asset)
+    else:
+        adir = _video_asset_dir(paths, project, args.asset_id)
+    if adir is None:
         err_console.print(f"[red]Asset not found: {args.asset_id}[/red]")
         raise SystemExit(2)
-    adir = resolver.asset_dir_for(paths, project, asset)
     try:
         dst = storage.approve(paths, adir, args.candidate_filename)
     except FileNotFoundError as e:
         err_console.print(f"[red]{e}[/red]")
         raise SystemExit(2)
     state = storage.load_state(paths)
-    st = storage.asset_state(state, asset.asset_id)
+    st = storage.asset_state(state, asset.asset_id if asset else args.asset_id)
     st["status"] = "approved"
     st["approved"] = str(dst.relative_to(paths.root))
     st["error"] = None
@@ -247,13 +300,15 @@ def cmd_reject(args: argparse.Namespace) -> None:
     paths = _paths_for(args.project)
     assets = resolver.effective_assets(project)
     asset = next((a for a in assets if a.asset_id == args.asset_id), None)
-    if asset is None:
+    state_key = asset.asset_id if asset else args.asset_id
+    adir = (resolver.asset_dir_for(paths, project, asset) if asset
+            else _video_asset_dir(paths, project, args.asset_id))
+    if adir is None:
         err_console.print(f"[red]Asset not found: {args.asset_id}[/red]")
         raise SystemExit(2)
-    adir = resolver.asset_dir_for(paths, project, asset)
     had = storage.reject(adir)
     state = storage.load_state(paths)
-    st = storage.asset_state(state, asset.asset_id)
+    st = storage.asset_state(state, state_key)
     st["status"] = "generated" if had else "pending"
     st["approved"] = None
     storage.save_state(paths, state)
@@ -301,6 +356,18 @@ def cmd_status(args: argparse.Namespace) -> None:
         table.add_row(
             a.asset_id, a.asset_type.value,
             st.get("status", "pending"),
+            (st.get("approved") or "-"),
+            str(u.get("calls", 0) or 0),
+            (f"{u.get('cost_usd', 0):.4f}" if u.get("calls") else "-"),
+            (st.get("error") or ""),
+        )
+    for key in sorted(state.get("assets", {})):
+        if not key.startswith("video_"):
+            continue
+        st = state["assets"][key]
+        u = st.get("usage", {}) or {}
+        table.add_row(
+            key, "video_clip", st.get("status", "pending"),
             (st.get("approved") or "-"),
             str(u.get("calls", 0) or 0),
             (f"{u.get('cost_usd', 0):.4f}" if u.get("calls") else "-"),
@@ -356,6 +423,19 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--allow-unapproved", action="store_true",
                     help="use newest candidate instead of approved image for inputs")
     sp.set_defaults(func=cmd_generate)
+
+    sp = sub.add_parser("video", help="generate per-shot clips via Higgsfield "
+                        "reference-to-video (spends money)")
+    sp.add_argument("project")
+    sp.add_argument("--shot", action="append", help="shot id (repeatable)")
+    sp.add_argument("--model", help="Higgsfield model id from the config catalog")
+    sp.add_argument("--resolution", help="480p | 720p | 1080p (default: project setting)")
+    sp.add_argument("--dry-run", action="store_true", help="list jobs + costs, no API call")
+    sp.add_argument("--yes", action="store_true", help="skip per-shot cost confirmation")
+    sp.add_argument("--force", action="store_true", help="re-submit even if a clip exists")
+    sp.add_argument("--allow-unapproved", action="store_true",
+                    help="use newest candidate instead of approved keyframe/references")
+    sp.set_defaults(func=cmd_video)
 
     sp = sub.add_parser("review", help="build storyboard/review.html gallery")
     sp.add_argument("project")

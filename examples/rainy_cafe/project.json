@@ -13,7 +13,7 @@
     "image_model": "gemini-3.1-flash-image",
     "video_model": "seedance-2-5",
     "image_resolution": "1K",
-    "video_resolution": "720p"
+    "video_resolution": "480p"
   },
   "style_bible": {
     "medium": "cinematic_film_still",
