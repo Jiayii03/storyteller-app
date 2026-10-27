@@ -37,3 +37,12 @@ def test_extra_fields_allowed():
     data["project"]["future_field"] = "kept"
     p = Project.model_validate(data)
     assert p.project.model_extra["future_field"] == "kept"
+
+
+def test_motion_video_prompt_and_kling_fallback():
+    from storyteller.schema import Motion
+
+    assert Motion.model_validate({}).video_prompt == ""
+    m = Motion.model_validate({"kling_prompt": "legacy"})
+    assert m.video_prompt == ""
+    assert m.model_extra["kling_prompt"] == "legacy"

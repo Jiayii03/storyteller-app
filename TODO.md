@@ -1,0 +1,1 @@
+- asset generation should include character sheets. differnet angle of the character, sitting, standing, facial details and expression.

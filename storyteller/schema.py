@@ -380,8 +380,13 @@ class Motion(_Flexible):
     camera_motion: str = ""
     environment_motion: str = ""
     pacing: Pacing = Pacing.natural
-    kling_prompt: str = ""
+    video_prompt: str = ""
     audio_notes: str = ""
+
+    @property
+    def prompt_override_text(self) -> str:
+        """Hand-written prompt; legacy kling_prompt key still honored."""
+        return self.video_prompt or (self.model_extra or {}).get("kling_prompt", "")
 
 
 class Shot(_Flexible):

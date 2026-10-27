@@ -5,13 +5,13 @@
     "title": "Rainy Cafe",
     "logline": "A tired woman finds unexpected hope in a corner cafe on a rainy evening.",
     "aspect_ratio": "16:9",
-    "target_video_model": "kling",
+    "target_video_model": "higgsfield",
     "target_total_duration_sec": 30,
     "language": "en"
   },
   "models": {
     "image_model": "gemini-3.1-flash-image",
-    "video_model": "gemini-omni-1.1-flash",
+    "video_model": "seedance-2-5",
     "image_resolution": "1K",
     "video_resolution": "720p"
   },
@@ -162,7 +162,7 @@
         "camera_motion": "very slow push in",
         "environment_motion": "rain streaks down glass",
         "pacing": "slow",
-        "kling_prompt": "",
+        "video_prompt": "",
         "audio_notes": "soft rain, low cafe murmur"
       },
       "continuity_notes": "",

@@ -313,6 +313,29 @@ def legend_block(inputs: list[tuple[Path, str]]) -> str:
     return "\n".join(lines)
 
 
+def compose_motion_prompt(shot: Shot) -> str:
+    """Motion prompt body: hand-written video_prompt (or legacy kling_prompt)
+    if present, else auto-composed from the shot's motion fields."""
+    m = shot.motion
+    parts: list[str] = []
+    if m.camera_motion or shot.camera.movement:
+        cm = m.camera_motion or f"{str(shot.camera.movement.value).replace('_', ' ')} camera"
+        if shot.camera.movement_speed:
+            cm += f", {str(shot.camera.movement_speed.value).replace('_', ' ')}"
+        parts.append(f"Camera: {cm}.")
+    if m.subject_motion:
+        parts.append(f"Subject motion: {m.subject_motion}.")
+    if m.environment_motion:
+        parts.append(f"Environment motion: {m.environment_motion}.")
+    if m.pacing:
+        parts.append(f"Pacing: {m.pacing.value}.")
+    body = "Animate this frame. Keep the subject and scene identical to the first frame."
+    if parts:
+        body = f"{body} " + " ".join(parts)
+    override = m.prompt_override_text
+    return override if override else body
+
+
 def build_prompt(
     project: Project, asset: AssetJob,
     inputs: list[tuple[Path, str]],
@@ -497,24 +520,7 @@ def build_prompt(
         shot = shots.get(asset.target_id)
         if shot is None:
             raise ValueError(f"Asset {asset.asset_id}: shot {asset.target_id!r} not found")
-        m = shot.motion
-        parts: list[str] = []
-        if m.camera_motion or shot.camera.movement:
-            cm = m.camera_motion or f"{str(shot.camera.movement.value).replace('_', ' ')} camera"
-            if shot.camera.movement_speed:
-                cm += f", {str(shot.camera.movement_speed.value).replace('_', ' ')}"
-            parts.append(f"Camera: {cm}.")
-        if m.subject_motion:
-            parts.append(f"Subject motion: {m.subject_motion}.")
-        if m.environment_motion:
-            parts.append(f"Environment motion: {m.environment_motion}.")
-        if m.pacing:
-            parts.append(f"Pacing: {m.pacing.value}.")
-        body = "Animate this frame. Keep the subject and scene identical to the first frame."
-        if parts:
-            body = f"{body} " + " ".join(parts)
-        if m.kling_prompt:
-            body = m.kling_prompt
+        body = compose_motion_prompt(shot)
         if asset.prompt_append:
             body += f"\n{asset.prompt_append}"
         return {"prompt_text": body, "negative_prompt": _negative_line(project, asset, shot),

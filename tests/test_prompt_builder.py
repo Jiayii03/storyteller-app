@@ -77,6 +77,18 @@ def test_motion_prompt_does_not_redescribe(example_project):
     assert "rain streaks down glass" in text
 
 
+def test_compose_motion_prompt_prefers_video_prompt_then_kling():
+    from storyteller.prompt_builder import compose_motion_prompt
+    from storyteller.schema import Shot
+
+    s = Shot.model_validate({"id": "S01", "motion": {"video_prompt": "handheld chase"}})
+    assert compose_motion_prompt(s) == "handheld chase"
+    s2 = Shot.model_validate({"id": "S01", "motion": {"kling_prompt": "legacy text"}})
+    assert compose_motion_prompt(s2) == "legacy text"
+    s3 = Shot.model_validate({"id": "S01", "motion": {"subject_motion": "boy types"}})
+    assert "Subject motion: boy types." in compose_motion_prompt(s3)
+
+
 def test_legend_block():
     from pathlib import Path as P
     inputs = [(P("a.png"), "the identity reference for Mia: keep face, hair and build identical")]

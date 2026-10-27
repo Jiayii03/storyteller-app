@@ -25,7 +25,7 @@ TEMPLATE = {
         "title": "New project",
         "logline": "",
         "aspect_ratio": "16:9",
-        "target_video_model": "kling",
+        "target_video_model": "higgsfield",
         "target_total_duration_sec": 30,
     },
     "models": {
@@ -377,7 +377,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--columns", type=int, default=None)
     sp.set_defaults(func=cmd_storyboard)
 
-    sp = sub.add_parser("export", help="write export/manifest.json for Kling/Seedance")
+    sp = sub.add_parser("export", help="write export/manifest.json (video prompts + approved keyframes)")
     sp.add_argument("project")
     sp.set_defaults(func=cmd_export)
 

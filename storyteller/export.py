@@ -1,4 +1,4 @@
-"""Export manifest for the manual Kling/Seedance step."""
+"""Export manifest: per-shot approved keyframes, video prompt, clips."""
 
 from __future__ import annotations
 
@@ -24,9 +24,8 @@ def build_manifest(paths: ProjectPaths, project: Project) -> Path:
                         if (motion_dir / "approved").exists()), key=lambda p: p.name)
         clip = clips[0] if clips else None
         m = shot.motion
-        kling_prompt = m.kling_prompt or (
-            f"{m.subject_motion}. Camera: {m.camera_motion or (shot.camera.movement.value if shot.camera.movement else 'static')}. "
-            f"{m.environment_motion}." if m.subject_motion else "")
+        video_prompt = (m.prompt_override_text
+                        or prompt_builder.compose_motion_prompt(shot))
         entries.append({
             "shot_id": shot.id,
             "sequence_index": shot.sequence_index,
@@ -35,7 +34,7 @@ def build_manifest(paths: ProjectPaths, project: Project) -> Path:
             "start_keyframe": str(start.relative_to(paths.root)) if start else None,
             "end_keyframe": str(end.relative_to(paths.root)) if end else None,
             "clip": str(clip.relative_to(paths.root)) if clip else None,
-            "kling_prompt": kling_prompt,
+            "video_prompt": video_prompt,
             "transition_out": shot.transition_out.value,
             "audio_notes": m.audio_notes,
         })
