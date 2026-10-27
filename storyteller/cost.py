@@ -139,7 +139,7 @@ def video_cost(
 HIGGSFIELD_PRICING: dict[str, dict[str, float]] = {
     "seedance-2-5": {"480p": 0.174},
     "seedance-2-0": {"480p": 0.168},
-    "wan-3-0": {"720p": 0.050},
+    "wan-3-0": {"480p": 0.050, "720p": 0.050},
     "wan-3-0-prime": {"720p": 0.068},
     "kling-4-0": {"480p": 0.094},
 }

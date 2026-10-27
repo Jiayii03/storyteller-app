@@ -35,7 +35,7 @@ HIGGSFIELD_MODELS: dict[str, dict[str, Any]] = {
         "workflow": "alibaba/wan-3.0/reference-to-video",
         "durations_sec": {"min": 2, "max": 30},
         "resolutions": ["480p", "720p", "1080p"],
-        "price_per_sec_usd": {"720p": 0.050},
+        "price_per_sec_usd": {"480p": 0.050, "720p": 0.050},
         "params": ["prompt", "image_urls", "duration", "resolution",
                    "aspect_ratio", "generate_audio"],
         "max_references": 10,

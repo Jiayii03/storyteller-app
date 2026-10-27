@@ -254,6 +254,7 @@ def _run_shot(
         "asset_id": state_key, "asset_type": "video_clip",
         "target_id": shot.id, "prompt": prompt, "model": model,
         "resolution": resolution, "duration_sec": duration,
+        "first_image": str(first.relative_to(paths.root) if first.is_relative_to(paths.root) else first),
         "references": [str(r.relative_to(paths.root) if r.is_relative_to(paths.root) else r)
                        for r in refs],
         "request_id": request_id, "usage": usage, "cost_usd": cost_usd,
