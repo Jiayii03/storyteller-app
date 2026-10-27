@@ -63,6 +63,15 @@ def reference_asset_id(project: Project, kind: str, entity_id: str) -> str | Non
     return None
 
 
+def start_keyframe_asset_id(project: Project, shot_id: str) -> str | None:
+    """Asset id of a shot's start (or single) keyframe, whatever it is named."""
+    for a in effective_assets(project):
+        if a.asset_type == AssetType.keyframe and a.target_id == shot_id and \
+                a.frame_role in (FrameRole.start, FrameRole.single):
+            return a.asset_id
+    return None
+
+
 def dependencies(project: Project, asset: AssetJob) -> list[str]:
     """Asset ids this asset needs approved before it can run."""
     deps: list[str] = list(asset.input_asset_ids)
@@ -85,8 +94,8 @@ def dependencies(project: Project, asset: AssetJob) -> list[str]:
                     deps.append(d)
         # end keyframe needs the start keyframe for the same shot
         if asset.frame_role == FrameRole.end:
-            start_id = f"kf_{asset.target_id}_start"
-            if start_id != asset.asset_id and start_id not in deps:
+            start_id = start_keyframe_asset_id(project, asset.target_id)
+            if start_id and start_id != asset.asset_id and start_id not in deps:
                 deps.append(start_id)
         # chain_from_previous: depends on the previous shot's start keyframe
         if shot is not None and shot.chain_from_previous:
@@ -97,15 +106,15 @@ def dependencies(project: Project, asset: AssetJob) -> list[str]:
                     break
                 prev = s
             if prev is not None:
-                prev_id = f"kf_{prev.id}_start"
-                if prev_id not in deps:
+                prev_id = start_keyframe_asset_id(project, prev.id)
+                if prev_id and prev_id not in deps:
                     deps.append(prev_id)
 
     if asset.asset_type == AssetType.motion_clip:
         # needs a keyframe asset as input; if none listed, use the shot's start keyframe
         if not asset.input_asset_ids:
-            start_id = f"kf_{asset.target_id}_start"
-            if any(a.asset_id == start_id for a in effective_assets(project)):
+            start_id = start_keyframe_asset_id(project, asset.target_id)
+            if start_id and start_id not in deps:
                 deps.append(start_id)
 
     if asset.asset_type == AssetType.storyboard_sheet:
@@ -232,20 +241,24 @@ def resolve_inputs(
             if style:
                 add(style, _legend("style", ""))
             for subj in shot.subjects:
-                if reference_asset_id(project, "character", subj.character_id):
+                aid = reference_asset_id(project, "character", subj.character_id)
+                if aid:
                     ch = next((c for c in project.characters if c.id == subj.character_id), None)
-                    add(f"char_{subj.character_id}",
-                        _legend("character", ch.name if ch else subj.character_id))
-            if shot.location_id and reference_asset_id(project, "location", shot.location_id):
-                loc = next((l for l in project.locations if l.id == shot.location_id), None)
-                add(f"loc_{shot.location_id}",
-                    _legend("location", loc.name if loc else shot.location_id))
+                    add(aid, _legend("character", ch.name if ch else subj.character_id))
+            if shot.location_id:
+                aid = reference_asset_id(project, "location", shot.location_id)
+                if aid:
+                    loc = next((l for l in project.locations if l.id == shot.location_id), None)
+                    add(aid, _legend("location", loc.name if loc else shot.location_id))
             for p in shot.props_in_shot:
-                if reference_asset_id(project, "prop", p.prop_id):
+                aid = reference_asset_id(project, "prop", p.prop_id)
+                if aid:
                     pr = next((x for x in project.props if x.id == p.prop_id), None)
-                    add(f"prop_{p.prop_id}", _legend("prop", pr.name if pr else p.prop_id))
+                    add(aid, _legend("prop", pr.name if pr else p.prop_id))
             if asset.frame_role == FrameRole.end:
-                add(f"kf_{shot.id}_start", _legend("start_keyframe", shot.id))
+                start_id = start_keyframe_asset_id(project, shot.id)
+                if start_id:
+                    add(start_id, _legend("start_keyframe", shot.id))
             if shot.chain_from_previous:
                 ordered = sorted(project.shots, key=lambda s: s.sequence_index)
                 prev = None
@@ -254,7 +267,9 @@ def resolve_inputs(
                         break
                     prev = s
                 if prev is not None:
-                    add(f"kf_{prev.id}_start", _legend("previous_keyframe", prev.id))
+                    prev_id = start_keyframe_asset_id(project, prev.id)
+                    if prev_id:
+                        add(prev_id, _legend("previous_keyframe", prev.id))
 
     if asset.asset_type == AssetType.motion_clip:
         for aid in asset.input_asset_ids:

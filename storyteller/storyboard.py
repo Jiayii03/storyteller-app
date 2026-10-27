@@ -12,7 +12,7 @@ from .config import Config
 from .schema import AssetType, FrameRole, Project
 from .storage import ProjectPaths
 
-LABEL_H = 54
+LABEL_H = 72
 CELL_W = 480
 
 
@@ -65,7 +65,7 @@ def build_storyboard(paths: ProjectPaths, project: Project, cfg: Config,
         x = 16 + c * (CELL_W + 16)
         y = 16 + r * (cell_h + 16)
         canvas.paste(im, (x, y))
-        wrapped = "\n".join(textwrap.wrap(label, width=46)[:2])
+        wrapped = "\n".join(textwrap.wrap(label, width=46)[:3])
         draw.text((x + 4, y + im.height + 6), wrapped, fill=(240, 240, 240), font=font)
     draw.text((16, canvas.height - 38),
               f"Total running time: {total_sec:g}s",
