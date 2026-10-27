@@ -136,11 +136,13 @@ def video_cost(
 # approximate it at a fixed resolution. Verified 2026-10-27 from
 # docs.higgsfield.ai model pages / open.higgsfield.ai/pricing.
 # A resolution without a verified rate is cost-unknown, never guessed.
+# Current prices (open.higgsfield.ai/pricing, "your price" column,
+# 2026-10-27, confirmed by actual billing: wan-3-0 480p 8s charged $0.16).
 HIGGSFIELD_PRICING: dict[str, dict[str, float]] = {
-    "seedance-2-5": {"480p": 0.174},
-    "seedance-2-0": {"480p": 0.168},
-    "wan-3-0": {"480p": 0.050, "720p": 0.050},
-    "wan-3-0-prime": {"720p": 0.068},
+    "seedance-2-5": {"480p": 0.175},
+    "seedance-2-0": {"480p": 0.099},
+    "wan-3-0": {"480p": 0.02, "720p": 0.050},
+    "wan-3-0-prime": {"720p": 0.027},
     "kling-4-0": {"480p": 0.094},
 }
 

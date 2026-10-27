@@ -44,9 +44,15 @@ def test_video_cost_veo_kept_for_enterprise():
 def test_higgsfield_video_cost():
     from storyteller.cost import higgsfield_video_cost
     c = higgsfield_video_cost("seedance-2-5", "480p", 8, None)
-    assert c["cost_usd"] == round(0.174 * 8, 4)
-    assert c["rate_per_sec"] == 0.174
+    assert c["cost_usd"] == round(0.175 * 8, 4)
+    assert c["rate_per_sec"] == 0.175
     assert higgsfield_video_cost("totally-unknown", "480p", 8, None) is None
+
+
+def test_higgsfield_video_cost_wan_480p_billed_rate():
+    from storyteller.cost import higgsfield_video_cost
+    # matches the actually billed figure: 8s wan-3-0 480p = $0.16
+    assert higgsfield_video_cost("wan-3-0", "480p", 8, None)["cost_usd"] == 0.16
 
 
 def test_higgsfield_video_cost_unknown_resolution_is_none():

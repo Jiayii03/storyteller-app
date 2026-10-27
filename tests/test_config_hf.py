@@ -7,7 +7,7 @@ def test_catalog_defaults():
     cfg = load_config()
     e = cfg.higgsfield_models["seedance-2-5"]
     assert e["workflow"] == "bytedance/seedance-2.5/reference-to-video"
-    assert e["price_per_sec_usd"]["480p"] == 0.174
+    assert e["price_per_sec_usd"]["480p"] == 0.175
     assert e["durations_sec"] == {"min": 4, "max": 30}
     assert e["max_references"] == 30
     assert "image_urls" in e["params"]
