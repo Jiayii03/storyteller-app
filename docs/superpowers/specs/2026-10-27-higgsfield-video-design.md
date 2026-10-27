@@ -112,11 +112,12 @@ This change also removes Kling-specific naming: Kling was only ever the
   the README points at https://open.higgsfield.ai/pricing for updates.
   Models without a verified reference-to-video workflow are not seeded.
   Unknown model id = clear error listing catalog entries.
-- HTTP client: `httpx` (new dependency), submit with `Idempotency-Key`,
-  poll with the configured interval, hard timeout, download MP4 bytes
-  immediately. Billed usage from the status response is used when present;
-  otherwise the usage line logs the requested-and-clamped duration and the
-  README states the figure is an estimate.
+- HTTP client: official Python SDK `higgsfield-client` (submit, poll with
+  backoff, upload helpers, cancel, resume by request id) with `httpx` for
+  downloading MP4 bytes. Credentials via `HF_API_KEY`/"id:secret" env form,
+  passed to the SDK explicitly. Billed usage from the result is used when
+  present; otherwise the usage line logs the requested-and-clamped duration
+  and the README states the figure is an estimate.
 - `video` CLI: `video <project.json>` with `--shot` (repeatable),
   `--model`, `--resolution` (default `480p`), `--dry-run` (jobs + cost, no
   API), `--yes` (skip confirmation), `--force` (re-submit even if a clip

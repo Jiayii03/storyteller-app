@@ -95,7 +95,7 @@ Also in `tests/test_export.py` (new file, build a minimal project with one shot 
 - Test: `tests/test_config_hf.py` (create), `tests/test_cost.py`
 
 **Interfaces:**
-- Produces: `Config.higgsfield_models: dict[str, dict]` — each entry `{"workflow": str (reference-to-video path), "durations_sec": list[int], "resolutions": list[str], "price_per_sec_usd": dict[str, float], "params": list[str], "max_references": int}`. `Config.higgsfield_base_url: str = "https://api.higgsfield.ai"`. `hf_credentials() -> tuple[str, str]` (raise-free; returns `("", "")` when unset). `higgsfield_video_cost(model: str, resolution: str, duration_sec: float, pricing: dict | None) -> dict | None` returning `{"cost_usd": float, "rate_per_sec": float}` or `None`.
+- Produces: `Config.higgsfield_models: dict[str, dict]` — each entry `{"workflow": str (reference-to-video path), "durations_sec": {"min": int, "max": int}, "resolutions": list[str], "price_per_sec_usd": dict[str, float], "params": list[str], "max_references": int}`. `Config.higgsfield_base_url: str = "https://api.higgsfield.ai"`. `hf_credentials() -> tuple[str, str]` (raise-free; returns `("", "")` when unset; accepts `HF_API_KEY="id:secret"` combined or split `HF_API_KEY_ID`/`HF_API_KEY_SECRET`). `higgsfield_video_cost(model: str, resolution: str, duration_sec: float, pricing: dict | None) -> dict | None` returning `{"cost_usd": float, "rate_per_sec": float}` or `None` (no cross-resolution fallback).
 
 - [ ] **Step 1: Write failing tests**
 
@@ -134,35 +134,35 @@ def test_higgsfield_video_cost():
 
 - [ ] **Step 5: Commit** — `git commit -am "feat: higgsfield model catalog, credentials and video cost"`
 
-### Task 3: `HiggsfieldClient` — submit, upload, poll, download
+### Task 3: `HiggsfieldClient` — SDK wrapper (upload, submit, poll, download)
 
 **Files:**
 - Create: `storyteller/higgsfield_client.py`
+- Modify: `pyproject.toml` (`higgsfield-client`, `httpx`)
 - Test: `tests/test_higgsfield_client.py` (create)
 
 **Interfaces:**
-- Consumes: `Config.higgsfield_base_url/.higgsfield_models/.video_poll_interval_sec/.video_timeout_sec` (Task 2), `storage.log_api_call`.
+- Consumes: `Config.higgsfield_base_url/.higgsfield_models` (Task 2), `storage.log_api_call`; SDK surface used: `submit(workflow, arguments)` → controller with `poll_request_status()`/`get()`, `result(request_id=...)`, `upload_file(path)`.
 - Produces:
 ```python
 class HiggsfieldError(Exception): ...
 class HiggsfieldClient:
     def __init__(self, key_id: str, key_secret: str, cfg: Config,
-                 paths: ProjectPaths | None = None, transport: httpx.BaseTransport | None = None): ...
+                 paths: ProjectPaths | None = None, sdk=None): ...
     def generate_clip(self, model: str, prompt: str, first_image: Path,
                       references: list[Path], duration_sec: int, resolution: str,
                       aspect_ratio: str, destination: Path, asset_id: str,
                       request_id: str | None = None,
-                      idempotency_key: str | None = None,
-                      ) -> tuple[Path, dict | None, str, str]:
+                      ) -> tuple[Path, dict | None, str]:
         """Uploads first_image + references, submits to the model's
-        reference-to-video workflow. Returns (clip_path, usage_dict_or_None,
-        request_id, idempotency_key)."""
+        reference-to-video workflow (or resumes polling when request_id is
+        given). Returns (clip_path, usage_dict_or_None, request_id)."""
 ```
-- Body built from the model's catalog `params` list: `prompt`, first-frame image field + references field (names verified per model from its docs page), `duration`, `resolution`, `aspect_ratio`, `generate_audio: True`, `output_format: "mp4"` — only keys present in `params`. More references than `max_references` → truncate with a logged warning. Unknown param name in catalog → `HiggsfieldError` at call time.
+- Arguments built from the model's catalog `params` list: `prompt`, `image_urls` (uploaded, ordered — first URL is the first frame, the rest identity references), `duration`, `resolution`, `aspect_ratio`, `generate_audio: True` — only keys present in `params`. Unknown param name in catalog → `HiggsfieldError` at call time. More references than `max_references` → truncate with a logged warning.
 
-- [ ] **Step 1: Write failing tests** using `httpx.MockTransport` covering: (a) happy path — POST returns queued with `request_id`, one 202/`queued` poll then `completed` with `{"videos": [{"url": ...}]}`, second route serves MP4 bytes; assert bytes written to `destination`, returned ids non-empty; (b) `test_poll_failure_raises` — terminal `failed` → `HiggsfieldError` containing `failed`; (c) `test_timeout_raises` — always-`queued` with `video_timeout_sec` patched to 0 → `HiggsfieldError` containing `timed out`; (d) `test_resume_skips_submit` — `request_id` passed in → no POST recorded by the handler, polls directly; (e) `test_unknown_model_raises` — model not in catalog → `HiggsfieldError` listing catalog ids, zero HTTP calls; (f) `test_upload_flow` — first_image + 2 references: assert one `POST /files/generate-upload-url` + PUT per input, the POST body carries the returned public URLs in the model's documented field names, and the auth header matches `Key id:secret`; (g) `test_max_references_truncated` — 4 references, `max_references: 2` → only 2 URLs in body, warning logged.
-- [ ] **Step 2: Run tests, verify FAIL** — ModuleNotFoundError.
-- [ ] **Step 3: Implement `storyteller/higgsfield_client.py`** — httpx.Client(base_url, transport=transport); `_upload_image(path) -> str`: POST `/files/generate-upload-url` {content_type} → PUT bytes to returned URL → return `public_url`; `_submit(body, idem_key)`; `_poll(request_id)` loop with `time.sleep(cfg.video_poll_interval_sec)`; download via `client.stream` into `destination` (mkdir parents); usage dict = any `usage`/`duration` fields present in the completed status JSON, else `None`. Log submit/poll-complete/download via `log_api_call` (never credentials).
+- [ ] **Step 1: Write failing tests** (fake SDK object injected via `sdk=`; no network): (a) happy path — fake `submit` returns controller yielding `Queued` then `Completed`, `get()` returns `{"video": {"url": ...}}` served as MP4 bytes via a stubbed downloader; assert bytes written to `destination`, returned request_id non-empty, arguments contain uploaded URLs with first frame first; (b) `test_poll_failure_raises` — controller yields `Failed` → `HiggsfieldError` containing `failed`; (c) `test_timeout_raises` — controller yields `Queued` forever, `video_timeout_sec` patched to 0 → `HiggsfieldError` containing `timed out`; (d) `test_resume_skips_submit` — `request_id` passed → fake `submit` never called, `result(request_id=...)` called; (e) `test_unknown_model_raises` — model not in catalog → `HiggsfieldError` listing catalog ids, zero SDK calls; (f) `test_uploads_first_frame_then_references` — 1 keyframe + 2 references → `upload_file` called 3 times in order, `image_urls` has 3 URLs in order; (g) `test_max_references_truncated` — 4 references, `max_references: 2` → `image_urls` has 3 URLs (frame + 2), warning logged.
+- [ ] **Step 2: Run tests, verify FAIL** — module not found.
+- [ ] **Step 3: Implement `storyteller/higgsfield_client.py`** — import `higgsfield_client` lazily; upload via `sdk.upload_file`; submit via `sdk.submit(workflow, arguments)`; iterate `controller.poll_request_status()` against `video_timeout_sec` deadline; `Completed` → `controller.get()`, `Failed/NSFW/Cancelled` → `HiggsfieldError` with status; download `result["video"]["url"]` with `httpx` stream into `destination` (mkdir parents); usage dict = any `usage`/`duration` fields on the result, else `None`. Log submit/complete/download via `log_api_call` (never credentials).
 - [ ] **Step 4: Run tests, verify PASS** — `uv run pytest tests/test_higgsfield_client.py -v`
 - [ ] **Step 5: Commit** — `git commit -am "feat: higgsfield REST client (upload, submit, poll, download)"`
 
@@ -188,7 +188,7 @@ def shot_references(paths: ProjectPaths, project: Project, shot: Shot,
     Raises ValueError naming the approve command when the start keyframe is
     missing; references included only when approved/resolvable."""
 ```
-- State: per shot under key `video_<shot_id>` with `{"status", "error", "candidates": [], "request_id", "idempotency_key", "usage": {"calls", "cost_usd"}}`. Clips written via `storage.write_candidate` into `paths.shot_motion_dir(shot.id)` with filename `clip_v{n:02d}.mp4` (bump `version`). `cmd_approve`/`cmd_reject`: when the id matches `video_<shot_id>` and no asset matches, operate on `paths.shot_motion_dir`. `cmd_status`: after asset rows, add rows for `video_*` state keys.
+- State: per shot under key `video_<shot_id>` with `{"status", "error", "candidates": [], "request_id", "usage": {"calls", "cost_usd"}}`. Clips written via `storage.write_candidate` into `paths.shot_motion_dir(shot.id)` with filename `clip_v{n:02d}.mp4` (bump `version`). `cmd_approve`/`cmd_reject`: when the id matches `video_<shot_id>` and no asset matches, operate on `paths.shot_motion_dir`. `cmd_status`: after asset rows, add rows for `video_*` state keys.
 
 - [ ] **Step 1: Write failing tests** (fake client injected by monkeypatching `video.HiggsfieldClient`): (a) `test_dry_run_no_http` — 2-shot project, `dry_run=True` → report lists both shots with costs, client never constructed; (b) `test_unknown_model_errors` — `--model nope` → SystemExit 2, error lists catalog ids; (c) `test_duration_clamped` — shot 8 s, catalog durations `[4,5,6]` → submitted duration 6, warning logged; (d) `test_missing_keyframe_skips_shot` — no approved keyframe for S02, S01 fine → S01 in done, S02 in skipped with approve-command hint; (d2) `test_references_resolved` — project with approved char/location sheets referenced by the shot → client receives first frame + 2 references, in order [char..., location]; unapproved sheet omitted; (e) `test_per_shot_confirm` — patch `builtins.input` returning "n" on shot 2 → shot 2 skipped "aborted", shot 1 done; "y" both times → both done; (f) `test_resume_polls_existing_request` — state pre-seeded `video_S01.request_id` → client called with that `request_id`; (g) `test_state_and_sidecar` — after run, `state["video_S01"]["status"] == "generated"`, candidate + `.meta.json` exist in motion dir, meta has prompt/model/cost, no key material; (h) `test_manifest_uses_composed_prompt` — export manifest `video_prompt` populated for a shot with only `subject_motion`.
 - [ ] **Step 2: Run tests, verify FAIL**
