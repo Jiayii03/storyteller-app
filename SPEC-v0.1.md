@@ -1,5 +1,10 @@
 # Storyteller App: Technical Spec v0.1
 
+> **2026-10-27 update:** v0.1 is historical. Video now runs through the
+> `video` subcommand (Higgsfield reference-to-video, catalog in
+> `config.yaml`); the Veo motion-test path and all Kling naming were removed.
+> See README.md and docs/superpowers/specs/2026-10-27-higgsfield-video-design.md.
+
 A Python CLI that reads a project JSON file and uses the Gemini API (images) and Veo (short video) to generate reference images, keyframes, storyboard sheets and short motion test clips, saved to an organized folder.
 
 ## 1. Purpose and scope

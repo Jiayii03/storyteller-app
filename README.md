@@ -1,15 +1,16 @@
 # Storyteller
 
-Reference images, keyframes, storyboard sheets and motion tests for an AI video
-pipeline: Gemini images + Veo motion tests. Final clips are made later in Kling
-or Seedance.
+Reference images, keyframes, storyboard sheets and final video clips for an AI
+video pipeline: Gemini images + Higgsfield video (reference-to-video).
 
 ## Setup
 
 ```sh
 uv sync                     # installs dependencies into .venv
 cp .env.example .env        # or create .env manually
-# .env must contain: GEMINI_API_KEY=your_key
+# .env must contain:
+#   GEMINI_API_KEY=your_key
+#   HF_API_KEY=key_id:key_secret   (from https://console.higgsfield.ai)
 ```
 
 ## Usage
@@ -23,6 +24,9 @@ uv run main.py plan projects/my_project/project.json    # job order + cost estim
 uv run main.py prompt projects/my_project/project.json kf_S01_start   # dry-run prompt
 uv run main.py generate projects/my_project/project.json --dry-run
 uv run main.py generate projects/my_project/project.json
+uv run main.py video projects/my_project/project.json --dry-run   # jobs + cost, no API call
+uv run main.py video projects/my_project/project.json             # per-shot cost confirm
+uv run main.py video projects/my_project/project.json --shot S01 --model seedance-2-5 --resolution 480p
 uv run main.py review projects/my_project/project.json   # storyboard/review.html
 uv run main.py approve projects/my_project/project.json char_mia v01_a.png
 uv run main.py reject projects/my_project/project.json char_mia
@@ -54,27 +58,42 @@ https://ai.google.dev/gemini-api/docs/pricing. Per-model rates also live in
 Batch tier is roughly half price. Every generated image carries a SynthID
 watermark. Image output is billed as tokens: a 1K image ≈1120 tokens.
 
-### Video models (motion tests — image-to-video)
+### Video models (final clips — Higgsfield reference-to-video)
 
-**Veo 3.1 Preview shut down on 2026-10-22.** Video generation on the Gemini
-Developer API is now **Gemini Omni Flash** through the Interactions API
-(`client.interactions.create`). Durations: 3–10 s (minimum 3 s; shorter
-requests are generated at 3 s and trimmed with ffmpeg). Audio is always
-generated (no silent option on the Developer API). Output: 720p, MP4.
+Video generation runs through the [Higgsfield](https://docs.higgsfield.ai) API:
+one credential, many models, async submit-and-poll. The `video` subcommand
+uses each model's **reference-to-video** workflow: per shot it uploads the
+approved start keyframe (first frame) plus the approved character and location
+reference sheets as identity references, so character and location consistency
+holds across the whole clip. Models without a reference-to-video workflow are
+not offered; there is no image-to-video fallback.
 
-| Model id | Price | Notes |
-|---|---|---|
-| `gemini-omni-1.1-flash` | ≈$0.10/s (720p) | Current video model. ~5792 tokens/s of video at $17.50/Mtok; input $1.50/Mtok. |
-| `gemini-omni-flash-preview` | ≈$0.10/s (720p) | Preview alias. |
-| `veo-3.1-generate-001` etc. | $0.40/s (audio) | Shut down in the Developer API; Enterprise Agent Platform only. |
+The catalog lives in `config.yaml` under `higgsfield:` (verified 2026-10-27):
 
-The app sets `video_config.task = "image_to_video"`; a second attached image
-acts as the ending frame. Rerunning with `--force` after editing the shot's
-`motion` fields re-animates the same keyframe.
+| Model id | Workflow | Duration | Resolutions | Known price/sec | Notes |
+|---|---|---|---|---|---|
+| `seedance-2-5` | `bytedance/seedance-2.5/reference-to-video` | 4–30 s | 480p/720p/1080p | 480p $0.174 | up to 30 image refs, native audio |
+| `seedance-2-0` | `bytedance/seedance-2.0/reference-to-video` | 4–15 s | 480p/720p/1080p/4k | 480p $0.168 | up to 9 image refs |
+| `wan-3-0` | `alibaba/wan-3.0/reference-to-video` | 2–30 s | 480p/720p/1080p | 720p $0.050 | prompt required, refs optional |
+
+- Prices are **list estimates** (Seedance bills per video token); a resolution
+  without a verified rate logs `cost_usd=unknown` rather than guessing.
+  Re-check https://open.higgsfield.ai/pricing before spending, and update
+  `price_per_sec_usd` per model in `config.yaml` when rates change.
+- Selection: `models.video_model` in `project.json`, `--model` flag, or the
+  `model_override` of a `motion_clip` asset targeting the shot.
+- Every submission asks for confirmation with its cost (`--yes` skips);
+  `--dry-run` shows jobs and costs without calling the API.
+- Completed generations are never refunded. Failed ones refund automatically.
+- State lives under `video_<shot_id>` in `state.json`; a killed run resumes
+  polling the same request instead of re-submitting. Clips land in the shot's
+  motion `candidates/` folder — approve with
+  `uv run main.py approve <project> video_<shot_id> clip_vNN.mp4`.
+- Higgsfield serves outputs for ~7 days; clips download immediately.
 
 ### Choosing per project or per asset
 
-- Project default: `models.image_model` / `models.video_model` in `project.json`.
+- Project default: `models.image_model` / `models.video_model` in `project.json` (`video_model` must be a Higgsfield catalog id for the `video` subcommand).
 - Per asset: `model_override` on any asset in `assets[]`, e.g. draft keyframes
   on `gemini-3.1-flash-lite-image`, final character sheet on `gemini-3-pro-image`.
 
@@ -96,25 +115,32 @@ Every successful API call writes a line to
 
 - Each candidate's `.meta.json` sidecar stores `usage` (prompt/candidates/total
   tokens from the API) and `cost_usd` computed from the `pricing` table.
-- `uv run main.py status` shows calls and accumulated cost per asset.
-- `generate` prints the run total (tokens, dollars). Calls without a pricing
-  entry are logged as `cost_usd=unknown` — add a rate to `config.yaml`.
+- `uv run main.py status` shows calls and accumulated cost per asset (image
+  assets and `video_<shot_id>` clip state).
+- `generate` prints the run total (tokens, dollars); `video` prints per-shot
+  cost before each submission and the run total at the end. Calls without a
+  pricing entry are logged as `cost_usd=unknown` — add a rate to `config.yaml`.
 - Estimates only; prices drift. Compare occasionally with your Google AI
-  Studio billing page.
+  Studio and Higgsfield billing pages.
 
 ## Workflow
 
 1. Edit `project.json`: entities (characters/locations/props) define identity,
    shots define what is on screen, assets define what to generate.
 2. `generate` produces `candidates/` images per asset in dependency order
-   (references → keyframes → motion clips → storyboard sheet).
+   (references → keyframes → storyboard sheet). Images only — video is its
+   own step.
 3. `review` builds an HTML gallery with copy-paste `approve` commands.
 4. Approve one candidate per asset — only approved images feed later stages.
-5. `export` writes the manifest for the manual Kling/Seedance step.
+5. `video` generates one clip per shot from the approved start keyframe +
+   identity references (per-shot cost confirm). Approve clips with
+   `uv run main.py approve <project> video_<shot_id> clip_vNN.mp4`.
+6. `export` writes `export/manifest.json` (per-shot approved keyframes,
+   `video_prompt`, clip paths) for editing/stitching downstream.
 
-Rerunning `generate` never repeats finished jobs; state lives in `state.json`.
-Model ids change often — see the catalog above; update `config.yaml` pricing
-when Google changes rates.
+Rerunning `generate` or `video` never repeats finished jobs; state lives in
+`state.json`. Model ids change often — see the catalogs above; update
+`config.yaml` pricing when Google or Higgsfield change rates.
 - The API key is read only from the environment or `.env` and is never written
   to logs, meta files or the project folder.
 - Example project: `examples/rainy_cafe/project.json`.

@@ -5,6 +5,8 @@ description = "Reference images, keyframes, storyboard sheets and motion tests f
 requires-python = ">=3.11"
 dependencies = [
     "google-genai>=1.0.0",
+    "higgsfield-client",
+    "httpx>=0.27",
     "pydantic>=2.7",
     "tenacity>=8.2",
     "Pillow>=10.0",
