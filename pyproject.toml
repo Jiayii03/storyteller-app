@@ -1,0 +1,17 @@
+[project]
+name = "storyteller"
+version = "0.1.0"
+description = "Reference images, keyframes, storyboard sheets and motion tests for an AI video pipeline"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai>=1.0.0",
+    "pydantic>=2.7",
+    "tenacity>=8.2",
+    "Pillow>=10.0",
+    "python-dotenv>=1.0",
+    "PyYAML>=6.0",
+    "rich>=13.7",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]

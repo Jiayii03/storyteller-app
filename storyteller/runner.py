@@ -1,0 +1,370 @@
+"""Generation orchestration: dependency order, caps, resumability."""
+
+from __future__ import annotations
+
+import json
+import shutil
+import time
+from pathlib import Path
+from typing import Any
+
+from . import cost as cost_mod
+from . import prompt_builder, resolver, storage
+from .config import Config, api_key
+from .gemini_client import ContentBlocked, GeminiImageClient
+from .schema import (
+    AssetJob, AssetType, Project, Status, VideoSpec,
+)
+from .storage import ProjectPaths
+from .veo_client import VeoClient
+
+
+class RunReport:
+    def __init__(self):
+        self.done: list[str] = []
+        self.failed: list[tuple[str, str]] = []
+        self.skipped: list[tuple[str, str]] = []
+        self.calls: int = 0
+        self.tokens: int = 0
+        self.cost_usd: float = 0.0
+        self.unknown_cost_calls: int = 0
+
+    @property
+    def ok(self) -> bool:
+        return not self.failed
+
+
+def _est_calls(project: Project, assets: list[AssetJob], cfg: Config) -> int:
+    """API calls: one per image variant, one per motion clip, zero for storyboard."""
+    n = 0
+    for a in assets:
+        if a.asset_type == AssetType.storyboard_sheet:
+            continue
+        if a.asset_type == AssetType.motion_clip:
+            n += 1
+            continue
+        n += a.variants or cfg.default_variants
+    return n
+
+
+def estimate(project: Project, cfg: Config, assets: list[AssetJob] | None = None) -> dict[str, Any]:
+    assets = assets or resolver.effective_assets(project)
+    calls = _est_calls(project, assets, cfg)
+    motion_assets = [a for a in assets if a.asset_type == AssetType.motion_clip]
+    video_secs = sum((a.video.duration_sec if a.video else 2.0) for a in motion_assets)
+    images = calls - len(motion_assets)
+    cost = (images * cfg.cost_per_image_usd
+            + sum(max((a.video.duration_sec if a.video else 2.0),
+                      cfg.video_min_duration_sec) * cfg.cost_per_video_sec_usd
+                  for a in motion_assets))
+    return {"calls": calls, "images": images, "video_secs": video_secs, "cost_usd": cost}
+
+
+def plan_list(project: Project) -> list[tuple[AssetJob, list[str]]]:
+    order = resolver.topo_order(project)
+    out = []
+    for a in order:
+        deps = [d for d in resolver.dependencies(project, a)
+                if d in {x.asset_id for x in order}]
+        out.append((a, deps))
+    return out
+
+
+def generate(
+    project_file: Path,
+    project: Project,
+    cfg: Config,
+    asset_filter: list[str] | None = None,
+    type_filter: str | None = None,
+    shot_filter: str | None = None,
+    variants_override: int | None = None,
+    force: bool = False,
+    dry_run: bool = False,
+    yes: bool = False,
+    allow_unapproved: bool = False,
+) -> RunReport:
+    report = RunReport()
+    paths = ProjectPaths(storage.project_root(project_file))
+    paths.ensure_dirs()
+    state = storage.load_state(paths)
+
+    assets = resolver.effective_assets(project)
+    selected = []
+    for a in assets:
+        if asset_filter and a.asset_id not in asset_filter:
+            continue
+        if type_filter and a.asset_type.value != type_filter:
+            continue
+        if shot_filter and a.target_id != shot_filter:
+            continue
+        selected.append(a)
+
+    # dependency order over the selection (topo_order covers full list; keep
+    # relative order, then filter)
+    order = [a for a in resolver.topo_order(project) if a in selected]
+
+    est = estimate(project, cfg, order)
+    if dry_run:
+        print("Planned jobs (dependency order):")
+        for a in order:
+            v = variants_override or a.variants or cfg.default_variants
+            calls = "1 (video)" if a.asset_type == AssetType.motion_clip else (
+                0 if a.asset_type == AssetType.storyboard_sheet else v)
+            print(f"  {a.asset_id:24} {a.asset_type.value:20} variants={v} calls={calls}")
+        print(f"Total estimated API calls: {est['calls']}  (~${est['cost_usd']:.2f})")
+        return report
+
+    if est["calls"] > cfg.confirm_above_calls and not yes:
+        answer = input(
+            f"This run plans {est['calls']} API calls (~${est['cost_usd']:.2f}). Continue? [y/N] ")
+        if answer.strip().lower() not in ("y", "yes"):
+            report.skipped.append(("*", "aborted by user"))
+            return report
+
+    key = api_key()
+    need_key_types = {AssetType.style_reference, AssetType.character_reference,
+                      AssetType.location_reference, AssetType.prop_reference,
+                      AssetType.keyframe, AssetType.motion_clip}
+    needs_key = any(a.asset_type in need_key_types for a in order)
+    img_client = veo_client = None
+    if needs_key:
+        if not key:
+            report.failed.append(("*", "GEMINI_API_KEY not set. Put it in .env or the environment."))
+            return report
+        img_client = GeminiImageClient(key, cfg, paths)
+        veo_client = VeoClient(key, cfg, paths)
+
+    failed_ids: set[str] = set()
+
+    def dep_ok(a: AssetJob) -> tuple[bool, str]:
+        for dep in resolver.dependencies(project, a):
+            if dep not in {x.asset_id for x in assets}:
+                continue
+            dst = storage.asset_state(state, dep)
+            if dep in failed_ids:
+                return False, f"dependency {dep} failed"
+            if dst.get("status") == "failed":
+                return False, f"dependency {dep} failed earlier"
+            if dst.get("status") != "approved" and not allow_unapproved:
+                pass  # checked at resolve time with the clear message
+        return True, ""
+
+    for a in order:
+        st = storage.asset_state(state, a.asset_id)
+        status = st.get("status", "pending")
+        if status in ("generated", "approved") and not force:
+            report.skipped.append((a.asset_id, f"already {status}"))
+            continue
+        if report.calls >= cfg.max_calls_per_run:
+            report.skipped.append((a.asset_id, "max_calls_per_run reached"))
+            continue
+
+        ok, reason = dep_ok(a)
+        if not ok:
+            st["status"] = "skipped"
+            st["error"] = reason
+            report.skipped.append((a.asset_id, reason))
+            continue
+
+        try:
+            _run_one(paths, project, a, cfg, state, img_client, veo_client,
+                     variants_override, force, allow_unapproved, report)
+            report.done.append(a.asset_id)
+        except Exception as e:  # noqa: BLE001
+            failed_ids.add(a.asset_id)
+            st["status"] = "failed"
+            st["error"] = str(e)
+            report.failed.append((a.asset_id, str(e)))
+        storage.save_state(paths, state)
+
+    # stop dependents of failed assets
+    for a in assets:
+        st = storage.asset_state(state, a.asset_id)
+        if st.get("status") in ("pending", None):
+            for dep in resolver.dependencies(project, a):
+                if dep in failed_ids or storage.asset_state(state, dep).get("status") == "failed":
+                    st["status"] = "skipped"
+                    st["error"] = f"dependency {dep} failed"
+                    report.skipped.append((a.asset_id, st["error"]))
+                    break
+    storage.save_state(paths, state)
+    return report
+
+
+def _run_one(
+    paths: ProjectPaths, project: Project, a: AssetJob, cfg: Config,
+    state: dict[str, Any],
+    img_client: GeminiImageClient | None,
+    veo_client: VeoClient | None,
+    variants_override: int | None,
+    force: bool,
+    allow_unapproved: bool,
+    report: RunReport,
+) -> None:
+    if a.asset_type == AssetType.storyboard_sheet:
+        from .storyboard import build_storyboard
+
+        out = build_storyboard(paths, project, cfg)
+        st = storage.asset_state(state, a.asset_id)
+        st["status"] = "approved"
+        st["error"] = None
+        st.setdefault("candidates", []).append(str(out.relative_to(paths.root)))
+        return
+
+    inputs = resolver.resolve_inputs(paths, project, a, allow_unapproved)
+    built = prompt_builder.build_prompt(project, a, inputs)
+
+    if a.asset_type == AssetType.motion_clip:
+        _generate_motion(paths, project, a, cfg, state, built, veo_client, report)
+        return
+
+    _generate_image(paths, project, a, cfg, state, built, img_client,
+                    variants_override, force, report)
+
+
+def _generate_image(
+    paths: ProjectPaths, project: Project, a: AssetJob, cfg: Config,
+    state: dict[str, Any], built: dict[str, Any], client: GeminiImageClient | None,
+    variants_override: int | None, force: bool, report: RunReport,
+) -> None:
+    assert client is not None
+    from .schema import ModelsConfig
+
+    variants = variants_override or a.variants or cfg.default_variants
+    variants = min(variants, cfg.max_variants_per_asset)
+    model = a.model_override or project.models.image_model
+    if not model:
+        raise ValueError(
+            "No image_model set in project.json models block (or --model).")
+    aspect = a.aspect_ratio or project.project.aspect_ratio.value
+    adir = resolver.asset_dir_for(paths, project, a)
+
+    for i in range(variants):
+        if report.calls >= cfg.max_calls_per_run:
+            raise ValueError(f"max_calls_per_run ({cfg.max_calls_per_run}) reached")
+        report.calls += 1
+        filename = storage.next_candidate_name(paths, adir, state, a.asset_id, i)
+        try:
+            data, text, usage = client.generate_image(
+                model=model, prompt=built["prompt_text"],
+                input_images=built["input_images"], aspect_ratio=aspect,
+                seed=a.seed, image_resolution=project.models.image_resolution,
+                asset_id=a.asset_id,
+            )
+        except ContentBlocked as e:
+            meta = {"asset_id": a.asset_id, "asset_type": a.asset_type.value,
+                    "status": "failed", "model": model, "prompt": built["prompt_text"],
+                    "message": str(e), "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")}
+            storage.write_meta_only(paths, adir, filename, meta)
+            raise ValueError(str(e)) from e
+        clip_cost = cost_mod.image_cost(
+            model, project.models.image_resolution, usage, 1,
+            pricing=cfg.image_pricing)
+        report.tokens += int(getattr(usage, "prompt_token_count", 0) or 0) if usage else 0
+        if clip_cost is not None:
+            report.cost_usd += clip_cost["cost_usd"]
+        else:
+            report.unknown_cost_calls += 1
+        meta = {
+            "asset_id": a.asset_id, "asset_type": a.asset_type.value,
+            "target_id": a.target_id, "frame_role": a.frame_role.value,
+            "prompt": built["prompt_text"],
+            "negative_prompt": built["negative_prompt"],
+            "model": model, "aspect_ratio": aspect, "seed": a.seed,
+            "input_images": [str(p.relative_to(paths.root) if p.is_relative_to(paths.root) else p)
+                             for p, _l in built["input_images"]],
+            "usage": {
+                "prompt_tokens": getattr(usage, "prompt_token_count", None) if usage else None,
+                "candidates_tokens": getattr(usage, "candidates_token_count", None) if usage else None,
+                "total_tokens": getattr(usage, "total_token_count", None) if usage else None,
+            },
+            "cost_usd": clip_cost["cost_usd"] if clip_cost else None,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+        if clip_cost is not None:
+            storage.log_api_call(paths, f"usage asset={a.asset_id} model={model} "
+                                        f"prompt_tokens={clip_cost['prompt_tokens']} "
+                                        f"cost_usd={clip_cost['cost_usd']}")
+        else:
+            storage.log_api_call(paths, f"usage asset={a.asset_id} model={model} "
+                                        "cost_usd=unknown (no pricing entry; add one to "
+                                        "pricing in config.yaml)")
+        out = storage.write_candidate(paths, adir, filename, data, meta)
+        st = storage.asset_state(state, a.asset_id)
+        st["status"] = "generated"
+        st["error"] = None
+        st["candidates"].append(str(out.relative_to(paths.root)))
+        u = st.setdefault("usage", {"calls": 0, "prompt_tokens": 0, "cost_usd": 0.0})
+        u["calls"] += 1
+        u["prompt_tokens"] += meta["usage"]["prompt_tokens"] or 0
+        if clip_cost is not None:
+            u["cost_usd"] = round(u["cost_usd"] + clip_cost["cost_usd"], 4)
+        storage.save_state(paths, state)
+        time.sleep(cfg.request_delay_sec)
+
+
+def _generate_motion(
+    paths: ProjectPaths, project: Project, a: AssetJob, cfg: Config,
+    state: dict[str, Any], built: dict[str, Any],
+    client: VeoClient | None, report: RunReport,
+) -> None:
+    assert client is not None
+    if report.calls >= cfg.max_calls_per_run:
+        raise ValueError(f"max_calls_per_run ({cfg.max_calls_per_run}) reached")
+    report.calls += 1
+    model = a.model_override or project.models.video_model
+    if not model:
+        raise ValueError("No video_model set in project.json models block.")
+    vs = a.video or VideoSpec()
+    adir = resolver.asset_dir_for(paths, project, a)
+    first = built["input_images"][0][0] if built["input_images"] else None
+    if first is None:
+        raise ValueError(f"Asset {a.asset_id}: no approved keyframe as first frame")
+    last = None
+    if vs.use_end_frame:
+        end_dir = paths.shot_keyframe_dir(a.target_id, "end")
+        last = storage.approved_file(end_dir)
+        if last is None:
+            raise ValueError(
+                f"Asset {a.asset_id}: use_end_frame is set but shot {a.target_id} "
+                "has no approved end keyframe")
+    audio = vs.generate_audio
+    out, usage, clip_cost = client.generate_clip(
+        model=model, prompt=built["prompt_text"], first_image=first, last_image=last,
+        requested_duration_sec=vs.duration_sec,
+        aspect_ratio=a.aspect_ratio or project.project.aspect_ratio.value,
+        resolution=vs.resolution,
+        generate_audio=audio, asset_id=a.asset_id,
+        destination=None,
+    )
+    if clip_cost is not None:
+        report.cost_usd += clip_cost["cost_usd"]
+    else:
+        report.unknown_cost_calls += 1
+    # move into project folder
+    import shutil as _sh
+    filename = f"clip_v{int(storage.asset_state(state, a.asset_id).get('version', 0)) + 1:02d}.mp4"
+    storage.asset_state(state, a.asset_id)["version"] = (
+        int(storage.asset_state(state, a.asset_id).get("version", 0)) + 1)
+    dst = adir / "candidates"
+    dst.mkdir(parents=True, exist_ok=True)
+    final = dst / filename
+    _sh.copyfile(out, final)
+    sidecar = {"asset_id": a.asset_id, "asset_type": "motion_clip",
+               "prompt": built["prompt_text"], "model": model,
+               "requested_duration_sec": vs.duration_sec,
+               "cost_usd": clip_cost["cost_usd"] if clip_cost else None,
+               "usage": {"video_duration_seconds": getattr(usage, "video_duration_seconds", None)}
+                         if usage is not None else None,
+               "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    (dst / (filename + ".meta.json")).write_text(
+        json.dumps(sidecar, indent=2), encoding="utf-8")
+    st = storage.asset_state(state, a.asset_id)
+    st["status"] = "generated"
+    st["error"] = None
+    st["candidates"].append(str(final.relative_to(paths.root)))
+    u = st.setdefault("usage", {"calls": 0, "cost_usd": 0.0})
+    u["calls"] += 1
+    if clip_cost is not None:
+        u["cost_usd"] = round(u["cost_usd"] + clip_cost["cost_usd"], 4)
+    storage.save_state(paths, state)

@@ -1,0 +1,52 @@
+# Storyteller configuration. Delete keys to use defaults.
+# Model constraints verified against Google AI docs (Oct 2026):
+# Video = Gemini Omni Flash (Interactions API): duration 3s-10s, 720p, audio
+# always generated. Veo 3.1 Preview shut down 2026-10-22.
+max_variants_per_asset: 4
+max_retries: 2
+confirm_above_calls: 10
+max_calls_per_run: 40
+request_delay_sec: 1.0
+video_poll_interval_sec: 10
+video_timeout_sec: 600
+default_variants: 2
+storyboard_columns: 3
+model_constraints:
+  video_allowed_durations_sec: [3, 4, 5, 6, 7, 8, 9, 10]
+  video_min_duration_sec: 3
+  video_supports_last_frame: true
+# Rough cost estimates for the plan command (fine-grained per-model rates below).
+cost_per_image_usd: 0.067
+cost_per_video_sec_usd: 0.10
+
+# Per-model rates for exact cost logging (paid tier, verified 2026-10-27).
+# Update from https://ai.google.dev/gemini-api/docs/pricing when they change.
+# Image models: input per 1M tokens + per-image output by resolution.
+# Video models: per second (Gemini Omni Flash: audio always generated).
+pricing:
+  image:
+    gemini-3.1-flash-image:
+      input_per_mtok_usd: 0.50
+      text_output_per_mtok_usd: 3.0
+      per_image_usd: { "0.5K": 0.045, "1K": 0.067, "2K": 0.101, "4K": 0.151 }
+    gemini-nano-banana-2.1:
+      input_per_mtok_usd: 0.50
+      text_output_per_mtok_usd: 3.0
+      per_image_usd: { "0.5K": 0.045, "1K": 0.067, "2K": 0.101, "4K": 0.151 }
+    gemini-3.1-flash-lite-image:
+      input_per_mtok_usd: 0.25
+      text_output_per_mtok_usd: 1.5
+      per_image_usd: { "1K": 0.034 }
+    gemini-3-pro-image:
+      input_per_mtok_usd: 2.0
+      text_output_per_mtok_usd: 12.0
+      per_image_usd: { "1K": 0.134, "2K": 0.134, "4K": 0.24 }
+    gemini-2.5-flash-image:
+      input_per_mtok_usd: 0.30
+      text_output_per_mtok_usd: 2.5
+      per_image_usd: { "1K": 0.039 }
+  video:
+    gemini-omni-1.1-flash:
+      "720p": { audio: 0.1013, silent: 0.1013 }
+    gemini-omni-flash-preview:
+      "720p": { audio: 0.1013, silent: 0.1013 }

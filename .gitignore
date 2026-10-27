@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+projects/*/.env
+
+# app-managed outputs (regeneratable); keep project.json inputs
+projects/**/assets/
+projects/**/storyboard/
+projects/**/export/
+projects/**/logs/
+projects/**/state.json
+projects/**/inputs/
+*.mp4
