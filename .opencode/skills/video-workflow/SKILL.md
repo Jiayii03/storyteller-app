@@ -23,6 +23,39 @@ All commands run via uv from the repo root: `uv run main.py <command>
 > building a new project. Take the field names and structure, write fresh
 > content for the user's actual story.
 
+## 0. Author `project.json` (user-reviewed before anything generates)
+
+Build `project.json` for the user's actual story (never copy example
+content). Fill every field with specific, concrete detail — empty or generic
+fields weaken every downstream prompt:
+
+- **characters**: exact skin tone/texture/marks, face shape and eyes, hair,
+  wardrobe down to fabrics and colors, `default_expression`,
+  `distinguishing_features` (one memorable anchor, e.g. a mole), and
+  `consistency_notes` for things that must never change.
+- **locations**: `architecture_layout` (where things are relative to each
+  other), `key_elements`, `materials_textures`, `default_lighting`,
+  `ambient_details` — the small specific objects that make a scene feel real.
+- **props**: `size_scale`, `materials`, `condition` (wear, chips, scratches).
+- **shots**: full `camera` block (shot_size, angle, lens_mm, movement,
+  movement_speed), `lighting` (key direction, quality, color temperature),
+  per-subject `pose` / `action` / `facial_expression` / `gaze` / `hands` /
+  `interaction` / `emotional_state` — say what the hands are doing and what
+  the character is touching, not just the mood. `composition` (framing rule,
+  negative space, screen direction), `background` depth layers.
+- **motion** (drives the video prompt): `subject_motion` (what visibly
+  moves), `camera_motion`, `environment_motion`, `pacing`,
+  `audio_notes` (ambience, dialogue, no-dialogue), and optionally a
+  hand-written `video_prompt`. Include spoken lines with accent/tone hints if
+  dialogue is wanted.
+- **assets**: list reference sheets, keyframes and the storyboard sheet with
+  `input_asset_ids` dependencies.
+
+**Then show the user the authored `project.json` — entity descriptions,
+shots and prompts — and get their explicit approval before running any
+generation.** Regenerate the file on request and re-review. Content review
+happens here, before spending.
+
 ## 1. Validate and plan
 
 ```
@@ -160,6 +193,7 @@ The manifest is the handoff for downstream editing/stitching.
 
 | Step | Command | Costs money |
 |---|---|---|
+| author project.json + user content review | edit `project.json` | no |
 | validate/plan | `validate`, `plan` | no |
 | reference sheets | `generate --type ..._reference` | yes |
 | review/approve | `review`, `approve`, `reject` | no |
