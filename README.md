@@ -68,13 +68,19 @@ reference sheets as identity references, so character and location consistency
 holds across the whole clip. Models without a reference-to-video workflow are
 not offered; there is no image-to-video fallback.
 
-The catalog lives in `config.yaml` under `higgsfield:` (verified 2026-10-27):
+The catalog lives in `config.yaml` under `higgsfield:` (verified 2026-10-27;
+prices are list, per second — "current" reflects today's promos):
 
-| Model id | Workflow | Duration | Resolutions | Known price/sec | Notes |
+| Model id | Workflow | Duration | Resolutions | List price/s | Notes |
 |---|---|---|---|---|---|
-| `seedance-2-5` | `bytedance/seedance-2.5/reference-to-video` | 4–30 s | 480p/720p/1080p | 480p $0.174 | up to 30 image refs, native audio |
-| `seedance-2-0` | `bytedance/seedance-2.0/reference-to-video` | 4–15 s | 480p/720p/1080p/4k | 480p $0.168 | up to 9 image refs |
-| `wan-3-0` | `alibaba/wan-3.0/reference-to-video` | 2–30 s | 480p/720p/1080p | 720p $0.050 | prompt required, refs optional |
+| `seedance-2-5` | `bytedance/seedance-2.5/reference-to-video` | 4–30 s | 480p/720p/1080p | 480p $0.174 | frontier quality; up to 30 refs, native audio |
+| `seedance-2-0` | `bytedance/seedance-2.0/reference-to-video` | 4–15 s | 480p/720p/1080p/4k | 480p $0.168 | up to 9 refs |
+| `wan-3-0` | `alibaba/wan-3.0/reference-to-video` | 2–30 s | 480p/720p/1080p | 720p $0.050 | **cheapest — use for testing** |
+| `wan-3-0-prime` | `alibaba/wan-3.0-prime/reference-to-video` | 2–30 s | 480p/720p/1080p | 720p $0.068 | |
+| `kling-4-0` | `kling-video/v4.0/reference-to-video` | 3–30 s | 480p/720p/1080p | 480p $0.094 | **endpoint unverified** — no docs page yet; inferred from Kling's URL pattern, test one cheap clip first |
+
+- First test recommendation: one `wan-3-0` 480p clip (~$0.40 for 8 s list),
+  then batch on `seedance-2-5`.
 
 - Prices are **list estimates** (Seedance bills per video token); a resolution
   without a verified rate logs `cost_usd=unknown` rather than guessing.

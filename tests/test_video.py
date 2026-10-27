@@ -42,27 +42,32 @@ PROJECT_JSON = {
 
 class FakeClient:
     calls: list[dict] = []
-    submitted_durations: list[int] = []
+    instances: list = []
+    fail_after_submit: bool = False
 
     def __init__(self, key_id, key_secret, cfg, paths=None, sdk=None):
         self.cfg = cfg
         self.paths = paths
         FakeClient.instances.append(self)
 
-    instances: list = []
-
     def generate_clip(self, model, prompt, first_image, references,
                       duration_sec, resolution, aspect_ratio, destination,
-                      asset_id, request_id=None):
+                      asset_id, request_id=None, on_submitted=None):
         FakeClient.calls.append({
             "model": model, "prompt": prompt, "first_image": str(first_image),
             "references": [str(r) for r in references],
             "duration_sec": duration_sec, "resolution": resolution,
             "asset_id": asset_id, "request_id": request_id,
         })
+        rid = request_id or "req-new"
+        if on_submitted is not None:
+            on_submitted(rid)
+        if FakeClient.fail_after_submit and request_id is None:
+            raise HiggsfieldError(
+                f"Video generation timed out after 0s for asset {asset_id}.")
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(b"mp4")
-        return destination, {"calls": 1}, request_id or "req-new"
+        return destination, {"calls": 1}, rid
 
 
 @pytest.fixture()
@@ -89,6 +94,7 @@ def env(tmp_path, monkeypatch):
     approve_ref(paths.assets / "locations", "cafe")
     FakeClient.instances = []
     FakeClient.calls = []
+    FakeClient.fail_after_submit = False
     monkeypatch.setattr(video, "HiggsfieldClient", FakeClient)
     cfg = load_config()
     return paths, project, cfg, approve
@@ -118,10 +124,35 @@ def test_unknown_model_errors(env):
 def test_duration_clamped(env):
     paths, project, cfg, _ = env
     cfg.higgsfield_models["seedance-2-5"]["durations_sec"] = {"min": 4, "max": 6}
-    report = _run(env, shots=None, model=None, resolution="480p", dry_run=False,
+    report = _run(env, shots=None, model=None, resolution="480p", dry_run=True,
                   yes=True, force=False, allow_unapproved=False)
     assert all(c["duration_sec"] == 6 for c in FakeClient.calls)
-    assert any("clamped" in w for w in report.warnings) or report.warnings or True
+    assert any("clamped" in w for w in report.warnings)
+
+
+def test_timeout_then_resume_no_resubmit(env):
+    paths, project, cfg, approve = env
+    approve("S02")
+    FakeClient.fail_after_submit = True
+    report = _run(env, shots=None, model=None, resolution="480p", dry_run=False,
+                  yes=True, force=False, allow_unapproved=False)
+    assert [aid for aid, _ in report.failed] == ["S01", "S02"]
+    state = storage.load_state(paths)
+    assert state["assets"]["video_S01"]["request_id"] == "req-new"
+    FakeClient.fail_after_submit = False
+    FakeClient.calls = []
+    report = _run(env, shots=None, model=None, resolution="480p", dry_run=False,
+                  yes=True, force=False, allow_unapproved=False)
+    assert [aid for aid, _ in report.done] == ["S01", "S02"]
+    assert all(c["request_id"] == "req-new" for c in FakeClient.calls)
+
+
+def test_bad_catalog_entry_rejected_before_spend(env):
+    paths, project, cfg, _ = env
+    cfg.higgsfield_models["broken"] = {"resolutions": ["480p"]}  # no workflow
+    with pytest.raises(HiggsfieldError, match="workflow"):
+        _run(env, shots=None, model="broken", resolution="480p", dry_run=False,
+             yes=True, force=False, allow_unapproved=False)
 
 
 def test_missing_keyframe_skips_shot(env):

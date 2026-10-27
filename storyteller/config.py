@@ -40,6 +40,28 @@ HIGGSFIELD_MODELS: dict[str, dict[str, Any]] = {
                    "aspect_ratio", "generate_audio"],
         "max_references": 10,
     },
+    "wan-3-0-prime": {
+        "workflow": "alibaba/wan-3.0-prime/reference-to-video",
+        "durations_sec": {"min": 2, "max": 30},
+        "resolutions": ["480p", "720p", "1080p"],
+        "price_per_sec_usd": {"720p": 0.068},
+        "params": ["prompt", "image_urls", "duration", "resolution",
+                   "aspect_ratio", "generate_audio"],
+        "max_references": 10,
+    },
+    # UNVERIFIED: no docs page yet (404 2026-10-27); endpoint inferred from
+    # the Kling URL pattern, params assumed canonical. Confirmed to exist on
+    # open.higgsfield.ai/pricing (Reference to Video, 3-30s, up to 1080p).
+    # Test with one cheap clip before batching.
+    "kling-4-0": {
+        "workflow": "kling-video/v4.0/reference-to-video",
+        "durations_sec": {"min": 3, "max": 30},
+        "resolutions": ["480p", "720p", "1080p"],
+        "price_per_sec_usd": {"480p": 0.094},
+        "params": ["prompt", "image_urls", "duration", "resolution",
+                   "aspect_ratio", "generate_audio"],
+        "max_references": 9,
+    },
 }
 
 DEFAULTS: dict[str, Any] = {

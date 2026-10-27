@@ -55,6 +55,7 @@ class HiggsfieldClient:
         destination: Path,
         asset_id: str,
         request_id: str | None = None,
+        on_submitted: Any = None,
     ) -> tuple[Path, dict | None, str]:
         entry = self.cfg.higgsfield_models.get(model)
         if entry is None:
@@ -85,6 +86,9 @@ class HiggsfieldClient:
                              f"refs={len(urls) - 1}")
             controller = self._sdk.submit(entry["workflow"], arguments)
             request_id = str(getattr(controller, "request_id", "") or "")
+            if on_submitted is not None and request_id:
+                # persist before polling: a kill mid-poll must resume, never re-submit
+                on_submitted(request_id)
 
         result, usage = self._wait(controller, asset_id, model)
         url = (result.get("video") or {}).get("url") if isinstance(result, dict) else None

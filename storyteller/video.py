@@ -45,14 +45,8 @@ def _video_model_for_shot(project: Project, shot: Shot, model_flag: str | None) 
     if not model:
         raise HiggsfieldError(
             "No video model set. Use `video --model <id>` or set "
-            "models.video_model in project.json. Catalog entries: "
-            + ", ".join(sorted(_catalog_keys(project)) or "none"))
+            "models.video_model in project.json.")
     return model
-
-
-def _catalog_keys(project: Project) -> list[str]:
-    # placeholder; replaced by cfg catalog in run_video
-    return []
 
 
 def _catalog_pricing(cfg: Config) -> dict[str, dict[str, float]]:
@@ -60,16 +54,14 @@ def _catalog_pricing(cfg: Config) -> dict[str, dict[str, float]]:
             for mid, e in cfg.higgsfield_models.items()}
 
 
-def _clamp_duration(cfg: Config, model: str, requested: float,
-                    report: VideoReport) -> int:
+def _clamp_duration(cfg: Config, model: str, requested: float) -> tuple[int, str | None]:
     entry = cfg.higgsfield_models[model]
     lo, hi = entry["durations_sec"]["min"], entry["durations_sec"]["max"]
     duration = max(lo, min(int(round(requested)), hi))
     if duration != requested:
-        report.warnings.append(
-            f"duration clamped: requested {requested:g}s, model {model} "
-            f"allows {lo}-{hi}s; using {duration}s")
-    return duration
+        return duration, (f"duration clamped: requested {requested:g}s, model "
+                          f"{model} allows {lo}-{hi}s; using {duration}s")
+    return duration, None
 
 
 def shot_references(paths: ProjectPaths, project: Project, shot: Shot,
@@ -124,29 +116,40 @@ def run_video(
     ordered = sorted(project.shots, key=lambda s: s.sequence_index)
     selected = [s for s in ordered if not shots or s.id in shots]
 
-    # validate models + estimate before any spending
-    per_shot: list[tuple[Shot, str, int, float | None]] = []
+    # validate models + catalog entry shape before any spending
+    per_shot: list[tuple[Shot, str, int, float | None, str | None]] = []
     for shot in selected:
         mid = _video_model_for_shot(project, shot, model)
-        if mid not in cfg.higgsfield_models:
+        entry = cfg.higgsfield_models.get(mid)
+        if entry is None:
             known = ", ".join(sorted(cfg.higgsfield_models))
             raise HiggsfieldError(
                 f"Unknown Higgsfield model {mid!r}. Catalog entries: {known}. "
                 "Add it under `higgsfield.models` in config.yaml.")
+        missing = [k for k in ("workflow", "durations_sec", "resolutions")
+                   if not entry.get(k)]
+        if missing:
+            raise HiggsfieldError(
+                f"Catalog entry {mid!r} is missing {', '.join(missing)} "
+                "in config.yaml `higgsfield.models`.")
         res = resolution or project.models.video_resolution or "480p"
-        if res not in (cfg.higgsfield_models[mid].get("resolutions") or []):
+        if res not in (entry.get("resolutions") or []):
             raise HiggsfieldError(
                 f"Model {mid} does not offer resolution {res!r} "
-                f"(offers: {', '.join(cfg.higgsfield_models[mid]['resolutions'])}).")
-        duration = _clamp_duration(cfg, mid, shot.duration_sec, report)
+                f"(offers: {', '.join(entry['resolutions'])}).")
+        duration, warn = _clamp_duration(cfg, mid, shot.duration_sec)
         clip_cost = cost_mod.higgsfield_video_cost(mid, res, duration, pricing)
-        per_shot.append((shot, mid, duration, clip_cost))
+        per_shot.append((shot, mid, duration, clip_cost, warn))
+        if warn:
+            report.warnings.append(f"{shot.id}: {warn}")
         report.estimates[shot.id] = clip_cost["cost_usd"] if clip_cost else -1.0
 
     print("Planned video jobs:")
-    for shot, mid, duration, clip_cost in per_shot:
+    for shot, mid, duration, clip_cost, warn in per_shot:
         cost_txt = f"~${clip_cost['cost_usd']:.2f}" if clip_cost else "cost unknown"
         print(f"  {shot.id:8} {mid:20} {duration:>3g}s {resolution or project.models.video_resolution or '480p':5} {cost_txt}")
+        if warn:
+            print(f"  [warn] {shot.id}: {warn}")
     if dry_run:
         print("Dry run: no API calls made.")
         return report
@@ -159,17 +162,20 @@ def run_video(
         return report
     client = HiggsfieldClient(key_id, key_secret, cfg, paths)
 
-    for shot, mid, duration, clip_cost in per_shot:
+    for shot, mid, duration, clip_cost, _warn in per_shot:
         st = storage.asset_state(state, f"video_{shot.id}")
         if st.get("status") in ("generated", "approved") and not force:
             report.skipped.append((shot.id, f"already {st['status']}"))
             continue
         cost_txt = f"~${clip_cost['cost_usd']:.2f}" if clip_cost else "unknown cost"
         if not yes:
-            answer = input(
-                f"Generate {shot.id}: {duration}s {mid} at "
-                f"{resolution or project.models.video_resolution or '480p'}, "
-                f"{cost_txt}? [y/N] ")
+            try:
+                answer = input(
+                    f"Generate {shot.id}: {duration}s {mid} at "
+                    f"{resolution or project.models.video_resolution or '480p'}, "
+                    f"{cost_txt}? [y/N] ")
+            except EOFError:
+                answer = ""
             if answer.strip().lower() not in ("y", "yes"):
                 report.skipped.append((shot.id, "aborted by user"))
                 break
@@ -199,31 +205,38 @@ def _run_shot(
     except ValueError as e:
         report.skipped.append((shot.id, str(e)))
         return False
-    for w in report.warnings:
-        print(f"[yellow]WARN[/yellow] {w}")
-    report.warnings.clear()
 
     prompt = prompt_builder.compose_motion_prompt(shot)
     state_key = f"video_{shot.id}"
     st = storage.asset_state(state, state_key)
     motion_dir = paths.shot_motion_dir(shot.id)
+    resuming = bool(st.get("request_id")) and not force
+    if resuming:
+        print(f"Resuming {shot.id}: polling existing request "
+              f"{st['request_id']} (no new submission)")
     version = int(st.get("version", 0)) + 1
     filename = f"clip_v{version:02d}.mp4"
     destination = motion_dir / "candidates" / filename
 
-    report.calls += 1
+    def _persist_request_id(rid: str) -> None:
+        # persist before polling: a kill mid-poll must resume, never re-submit
+        st["request_id"] = rid
+        storage.save_state(paths, state)
+
+    if not resuming:
+        report.calls += 1
     clip, usage, request_id = client.generate_clip(
         model=model, prompt=prompt, first_image=first, references=refs,
         duration_sec=duration, resolution=resolution,
         aspect_ratio=project.project.aspect_ratio.value,
         destination=destination, asset_id=state_key,
-        request_id=st.get("request_id") if not force else None,
+        request_id=st.get("request_id") if resuming else None,
+        on_submitted=_persist_request_id,
     )
     clip_cost = cost_mod.higgsfield_video_cost(
         model, resolution, duration, _catalog_pricing(cfg))
 
     st["version"] = version
-    st["request_id"] = request_id
     st["status"] = "generated"
     st["error"] = None
     st["candidates"].append(str(clip.relative_to(paths.root)))

@@ -238,15 +238,15 @@ def cmd_video(args: argparse.Namespace) -> None:
         raise SystemExit(1)
     if args.dry_run:
         return
-    usage_line = (f"Done. {len(report.done)} clips generated, "
-                  f"{len(report.skipped)} skipped, {report.calls} submissions, "
-                  f"~${report.cost_usd:.2f}" if report.cost_usd else
-                  f"Done. {len(report.done)} clips generated, "
-                  f"{len(report.skipped)} skipped, {report.calls} submissions")
-    console.print(usage_line + (f" ({report.unknown_cost_calls} without a "
-                                "price entry)" if report.unknown_cost_calls else "")
-                  + ". Approve clips: uv run main.py approve "
-                  f"{args.project} video_<shot_id> clip_vNN.mp4")
+    cost_part = (f", ~${report.cost_usd:.2f} total"
+                 if report.cost_usd or report.unknown_cost_calls else "")
+    unknown_part = (f" ({report.unknown_cost_calls} without a price entry)"
+                    if report.unknown_cost_calls else "")
+    console.print(f"[green]Done. {len(report.done)} clips generated, "
+                  f"{len(report.skipped)} skipped, {report.calls} submissions"
+                  f"{cost_part}{unknown_part}.[/green]")
+    console.print("Approve clips: uv run main.py approve " + args.project
+                  + " video_<shot_id> clip_vNN.mp4")
 
 
 def cmd_review(args: argparse.Namespace) -> None:
