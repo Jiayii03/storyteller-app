@@ -31,7 +31,7 @@ uv run main.py review projects/my_project/project.json   # storyboard/review.htm
 uv run main.py approve projects/my_project/project.json char_mia v01_a.png
 uv run main.py reject projects/my_project/project.json char_mia
 uv run main.py storyboard projects/my_project/project.json
-uv run main.py export projects/my_project/project.json   # export/manifest.json for Kling
+uv run main.py export projects/my_project/project.json   # export/manifest.json (prompts + clips)
 uv run main.py status projects/my_project/project.json
 uv run main.py schema > project.schema.json
 ```

@@ -9,15 +9,15 @@ A Python CLI that reads a project JSON file and uses the Gemini API (images) and
 
 ## 1. Purpose and scope
 
-The app prepares materials for an AI video pipeline (final clips are made later in Kling or Seedance). It does three things:
+The app prepares materials for an AI video pipeline (final clips are now generated in-app via the `video` subcommand / Higgsfield). It does three things:
 
 1. **Reference assets**: characters, locations, props and a style reference, so the look stays consistent.
 2. **Keyframes**: one or two precisely specified still images per shot (start frame, optional end frame), generated using the reference assets as inputs.
-3. **Motion tests (optional)**: a 1 to 2 second clip generated from a keyframe, to check that the motion looks right before spending on Kling.
+3. **Motion tests (optional)**: a 1 to 2 second clip generated from a keyframe, to check that the motion looks right before spending on video generation.
 
 It also builds a **storyboard sheet** (a contact sheet of approved keyframes with captions) for review.
 
-**Non-goals for v0.1:** no GUI (CLI plus a static HTML review gallery only), no calling Kling or Seedance, no audio, no video editing beyond ffmpeg trimming, no LLM prompt writing (the user or GLM writes the JSON; the app only turns JSON into prompts).
+**Non-goals for v0.1:** no GUI (CLI plus a static HTML review gallery only), no calling video APIs (that constraint was lifted later — video now runs through Higgsfield), no audio, no video editing beyond ffmpeg trimming, no LLM prompt writing (the user or GLM writes the JSON; the app only turns JSON into prompts).
 
 ## 2. Tech stack
 
@@ -90,7 +90,7 @@ The design principle is **entities define identity once, shots define what is on
 | title | string |  |
 | logline | string | one sentence summary, for context only |
 | aspect\_ratio | enum | `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `21:9`. Applied to all keyframes and clips |
-| target\_video\_model | string | free text, e.g. `kling`, `seedance`. Used only in metadata and prompt hints |
+| target\_video\_model | string | free text, e.g. `higgsfield`. Used only in metadata and prompt hints |
 | target\_total\_duration\_sec | number | e.g. 30 |
 | language | string | default `en` |
 
@@ -247,7 +247,7 @@ This is the core of the schema. Each shot describes everything on screen precise
 
 The `end` keyframe is generated from the start keyframe plus the `changes_from_start` list, so that everything unchanged stays identical.
 
-#### 5.7.5 `motion` (used for the motion clip and for the Kling prompt later)
+#### 5.7.5 `motion` (used for the motion clip and for the video prompt later)
 
 | Field | Notes |
 | --- | --- |
@@ -256,7 +256,7 @@ The `end` keyframe is generated from the start keyframe plus the `changes_from_s
 | camera\_motion | usually derived from `camera.movement`, can be overridden |
 | environment\_motion | wind, rain, background people |
 | pacing | `slow`, `natural`, `quick` |
-| kling\_prompt | optional hand-written motion prompt, passed through to the output manifest |
+| video\_prompt | optional hand-written motion prompt, passed through to the output manifest (legacy key `kling_prompt` still read) |
 | audio\_notes | not generated, only stored for later |
 
 ### 5.8 `assets[]` (the generation job list)
@@ -303,7 +303,7 @@ If `assets[]` is omitted, the app auto-generates a default job list: one asset p
     "id": "rainy_cafe",
     "title": "Rainy Cafe",
     "aspect_ratio": "16:9",
-    "target_video_model": "kling",
+    "target_video_model": "higgsfield",
     "target_total_duration_sec": 30
   },
   "models": { "image_model": "<fill in>", "video_model": "<fill in>" },
@@ -413,7 +413,7 @@ storyteller review <project.json>             # builds storyboard/review.html ga
 storyteller approve <project.json> <asset_id> <candidate_filename>
 storyteller reject <project.json> <asset_id>  # clears approval, keeps files
 storyteller storyboard <project.json>         # builds contact sheet from approved keyframes
-storyteller export <project.json>             # writes export/manifest.json with, per shot, the approved start/end keyframe, motion prompt and clip path, ready for Kling
+storyteller export <project.json>             # writes export/manifest.json with, per shot, the approved start/end keyframe, motion prompt and clip path, ready for downstream editing
 storyteller status <project.json>             # table of all assets and their status
 ```
 
@@ -423,7 +423,7 @@ storyteller status <project.json>             # table of all assets and their st
 
 **Storyboard sheet:** a grid (default 3 columns) of approved start keyframes in `sequence_index` order, each labelled with shot ID, duration and `summary`, with total running time at the bottom. Optional PDF output.
 
-**Export manifest:** a JSON file per project listing each shot in order with the paths of the approved start and end frames, the motion description, the `kling_prompt` (or an auto-composed one from `motion` fields), the duration and the transition. This is the handoff to the manual Kling step.
+**Export manifest:** a JSON file per project listing each shot in order with the paths of the approved start and end frames, the motion description, the `video_prompt` (or an auto-composed one from `motion` fields), the duration and the transition. This is the handoff to downstream editing/stitching.
 
 ## 10. Config and safety
 
@@ -474,7 +474,7 @@ storyteller/
   storage.py        # folder layout, sidecar meta, approvals, state.json
   review.py         # HTML gallery
   storyboard.py     # Pillow contact sheet
-  export.py         # manifest for Kling
+  export.py         # manifest for downstream editing
   config.py
 tests/
   test_schema.py  test_prompt_builder.py  test_resolver.py
